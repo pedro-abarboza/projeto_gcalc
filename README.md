@@ -1,77 +1,61 @@
-# Django Backend with OAuth
+# Sistema de Gestão de Cálculos Trabalhistas (GCALC)
 
-## Overview
-This is a backend application built using Django and OAuth2 for managing users, clients, and services. The project includes models for User, Client, ServiceType, and ServiceDistribution.
+Sistema web para gestão de cálculos trabalhistas, com backend em Django REST Framework, frontend em Vue.js (PrimeVue + Tailwind CSS) e banco de dados PostgreSQL.
 
-## Tech Stack
-- Python
-- Django
-- OAuth2
+## Estrutura do Projeto
 
-## Environment
-- Code-only development
+- **Backend**: API REST desenvolvida com Django REST Framework
+- **Frontend**: Interface de usuário desenvolvida com Vue.js, PrimeVue e Tailwind CSS
 
-## Project Structure
+## Módulos Principais
+
+1. **Usuários**: Gestão de usuários e permissões
+2. **Clientes**: Cadastro e gestão de clientes
+3. **Serviços**: Gestão de serviços e cálculos trabalhistas
+4. **Distribuição de Tarefas**: Sistema inteligente de alocação de cálculos
+5. **Auditoria**: Revisão e validação de cálculos
+6. **Envio de Cálculos**: Geração e envio de relatórios
+
+## Requisitos
+
+### Backend
+- Python 3.8+
+- Django 4.2+
+- PostgreSQL 13+
+
+### Frontend
+- Node.js 16+
+- Vue.js 3
+- PrimeVue
+- Tailwind CSS
+
+## Instalação e Configuração
+
+### Backend
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # No Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
 ```
-/home/project/manage.py
-/home/project/backend
-/home/project/backend/settings.py
-/home/project/backend/urls.py
-/home/project/backend/wsgi.py
-/home/project/user_module
-/home/project/user_module/models.py
-/home/project/client_module
-/home/project/client_module/models.py
-/home/project/service_module
-/home/project/service_module/models.py
-/home/project/user_module/urls.py
-/home/project/client_module/urls.py
-/home/project/service_module/urls.py
-/home/project/user_module/views.py
-/home/project/client_module/views.py
-/home/project/service_module/views.py
-/home/project/home_module
-/home/project/home_module/models.py
-/home/project/home_module/serializers.py
-/home/project/home_module/views.py
-/home/project/home_module/urls.py
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-## Setup Instructions
+## Funcionalidades Principais
 
-1. **Clone the Repository**
-   ```bash
-   git clone <repository-url>
-   cd <project-directory>
-   ```
-
-2. **Create a Virtual Environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-   ```
-
-3. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Run Migrations**
-   ```bash
-   python manage.py migrate
-   ```
-
-5. **Start the Development Server**
-   ```bash
-   python manage.py runserver
-   ```
-
-6. **Access the Application**
-   Open your browser and go to `http://127.0.0.1:8000/`.
-
-## Contributing
-Feel free to contribute by submitting pull requests or opening issues.
-
-## License
-This project is licensed under the MIT License.
-```
+- CRUD completo para usuários, clientes e serviços
+- Captura automática de e-mails para criação de serviços
+- Distribuição inteligente de tarefas
+- Sistema de auditoria e revisão
+- Geração de relatórios em PDF
+- Notificações e alertas automáticos
