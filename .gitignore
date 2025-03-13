@@ -56,6 +56,8 @@ media/*
 */.coverage
 coverage.xml
 */coverage.xml
+sakai-vue/*
+
 
 # O index sempre será substituído pelo readme
 /docs/docs/index.md

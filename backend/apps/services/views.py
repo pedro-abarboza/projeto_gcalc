@@ -15,47 +15,12 @@ class ServiceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     filterset_class = ServiceFilter
     filter_backends = (filters.DjangoFilterBackend,)
+    serializer_class = ServiceSerializer
     
     def get_serializer_class(self):
         if self.action == 'list':
             return ServiceListSerializer
         return ServiceSerializer
-    
-    def get_queryset(self):
-        user = self.request.user
-        queryset = Service.objects.all()
-        
-        # Filtro por status
-        status = self.request.query_params.get('status', None)
-        if status:
-            queryset = queryset.filter(status=status)
-        
-        # Filtro por tipo de cálculo
-        calculation_type = self.request.query_params.get('calculation_type', None)
-        if calculation_type:
-            queryset = queryset.filter(calculation_type=calculation_type)
-        
-        # Filtro por cliente
-        client = self.request.query_params.get('client', None)
-        if client:
-            queryset = queryset.filter(
-                Q(client_name__icontains=client) | 
-                Q(client_document__icontains=client)
-            )
-        
-        # Filtro por responsável
-        assigned = self.request.query_params.get('assigned', None)
-        if assigned == 'me':
-            queryset = queryset.filter(assigned_to=user)
-        elif assigned == 'unassigned':
-            queryset = queryset.filter(assigned_to__isnull=True)
-        
-        # Filtro por revisor
-        reviewing = self.request.query_params.get('reviewing', None)
-        if reviewing == 'me':
-            queryset = queryset.filter(reviewer=user)
-        
-        return queryset
     
     @action(detail=True, methods=['post'])
     def assign(self, request, pk=None):

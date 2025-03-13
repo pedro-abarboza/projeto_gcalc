@@ -1,4 +1,5 @@
 from django_filters import rest_framework as filters
+from django.db.models import Q
 from .models import Service
 from django.db import models
 
@@ -13,17 +14,12 @@ class ServiceFilter(filters.FilterSet):
 
     class Meta:
         model = Service
-        fields = {
-            'status': ['exact'],
-            'calculation_type': ['exact'],
-            'assigned_to': ['exact', 'isnull'],
-            'reviewer': ['exact', 'isnull'],
-        }
+        fields = ['status', 'calculation_type', 'client', 'assigned', 'reviewing']
 
     def filter_client(self, queryset, name, value):
         return queryset.filter(
-            models.Q(client_name__icontains=value) |
-            models.Q(client_document__icontains=value)
+            Q(client_name__icontains=value) | 
+            Q(client_document__icontains=value)
         )
 
     def filter_assigned(self, queryset, name, value):
