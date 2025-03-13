@@ -1,8 +1,14 @@
 <script setup>
 import { useLayout } from '@/layout/composables/layout';
 import AppConfigurator from './AppConfigurator.vue';
+import { onMounted } from 'vue';
 
 const { toggleMenu, toggleDarkMode, isDarkTheme } = useLayout();
+
+// Aplicar tema quando o componente for montado
+onMounted(() => {
+    // O tema já é aplicado no hook onMounted do useLayout
+});
 </script>
 
 <template>

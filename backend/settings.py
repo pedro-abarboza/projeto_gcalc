@@ -149,7 +149,7 @@ CSRF_COOKIE_DOMAIN = ['http://127.0.0.1:8000/', 'http://localhost:8000/']
 # CORS settings
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:8080',
+    'http://localhost:8050',
     'http://127.0.0.1:8080',
 ]
 

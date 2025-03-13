@@ -1,10 +1,11 @@
-import { authService } from '@/services/authService';
+import { useAuthStore } from '@/stores/auth';
 
 export function authGuard(to, from, next) {
     const publicPages = ['/auth/login'];
-    const authRequired = !publicPages.includes(to.path);
+    const requiresAuth = !publicPages.includes(to.path);
+    const authStore = useAuthStore();
 
-    if (authRequired && !authService.isAuthenticated()) {
+    if (requiresAuth && !authStore.isAuthenticated) {
         return next({
             path: '/auth/login',
             query: { returnUrl: to.fullPath }

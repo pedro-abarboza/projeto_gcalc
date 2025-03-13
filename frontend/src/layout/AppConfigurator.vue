@@ -175,6 +175,7 @@ function updateColors(type, color) {
     }
 
     applyTheme(type, color);
+    useLayout().saveLayoutConfig();
 }
 
 function applyTheme(type, color) {
@@ -191,10 +192,12 @@ function onPresetChange() {
     const surfacePalette = surfaces.value.find((s) => s.name === layoutConfig.surface)?.palette;
 
     $t().preset(presetValue).preset(getPresetExt()).surfacePalette(surfacePalette).use({ useDefaultOptions: true });
+    useLayout().saveLayoutConfig();
 }
 
 function onMenuModeChange() {
     layoutConfig.menuMode = menuMode.value;
+    useLayout().saveLayoutConfig();
 }
 </script>
 

@@ -8,6 +8,9 @@ import StyleClass from 'primevue/styleclass';
 
 // Temas e estilos
 import Aura from '@primeuix/themes/aura';
+import Lara from '@primeuix/themes/lara';
+import Nora from '@primeuix/themes/nora';
+import { $t, updatePreset, updateSurfacePalette } from '@primeuix/themes';
 
 // Componentes
 import Button from 'primevue/button';
@@ -31,14 +34,43 @@ import Chart from 'primevue/chart';
 import Dropdown from 'primevue/dropdown';
 import Calendar from 'primevue/calendar';
 
+// Função para carregar as configurações do localStorage
+const loadLayoutConfig = () => {
+    try {
+        const savedConfig = localStorage.getItem('layoutConfig');
+        if (savedConfig) {
+            return JSON.parse(savedConfig);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar configurações do layout:', error);
+    }
+    
+    // Configurações padrão
+    return {
+        preset: 'Aura',
+        primary: 'emerald',
+        surface: null,
+        darkTheme: false,
+        menuMode: 'static'
+    };
+};
 
+// Função para obter o preset correto com base nas configurações salvas
+const getPreset = () => {
+    const config = loadLayoutConfig();
+    const presets = { Aura, Lara, Nora };
+    return presets[config.preset] || Aura;
+};
 
 export function registerPrimeVue(app) {
+    const config = loadLayoutConfig();
+    const preset = getPreset();
+
     // Registra serviços
     app.use(PrimeVue, {
         ripple: true,
         theme: {
-            preset: Aura,
+            preset: preset,
             options: {
                 darkModeSelector: '.app-dark'
             }

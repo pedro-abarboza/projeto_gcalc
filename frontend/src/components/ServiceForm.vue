@@ -16,6 +16,7 @@
                 optionLabel="name"
                 placeholder="Selecione um Cliente"
                 :class="{ 'p-invalid': submitted && !serviceData.client }"
+                :disabled="loading"
             />
             <small class="p-error" v-if="submitted && !serviceData.client">Cliente é obrigatório.</small>
         </div>
@@ -30,6 +31,7 @@
                 optionValue="value"
                 placeholder="Selecione o Tipo"
                 :class="{ 'p-invalid': submitted && !serviceData.calculation_type }"
+                :disabled="loading"
             />
             <small class="p-error" v-if="submitted && !serviceData.calculation_type">Tipo de cálculo é obrigatório.</small>
         </div>
@@ -42,6 +44,7 @@
                 required="true"
                 rows="3"
                 :class="{ 'p-invalid': submitted && !serviceData.description }"
+                :disabled="loading"
             />
             <small class="p-error" v-if="submitted && !serviceData.description">Descrição é obrigatória.</small>
         </div>
@@ -54,6 +57,7 @@
                 dateFormat="dd/mm/yy"
                 :showIcon="true"
                 :class="{ 'p-invalid': submitted && !serviceData.deadline }"
+                :disabled="loading"
             />
             <small class="p-error" v-if="submitted && !serviceData.deadline">Prazo é obrigatório.</small>
         </div>
@@ -68,19 +72,23 @@
                 optionValue="value"
                 placeholder="Selecione o Status"
                 :class="{ 'p-invalid': submitted && !serviceData.status }"
+                :disabled="loading"
             />
             <small class="p-error" v-if="submitted && !serviceData.status">Status é obrigatório.</small>
         </div>
 
         <template #footer>
-            <Button label="Cancelar" icon="pi pi-times" class="p-button-text" @click="hideDialog" />
-            <Button label="Salvar" icon="pi pi-check" class="p-button-text" @click="saveService" />
+            <Button label="Cancelar" icon="pi pi-times" class="p-button-text" @click="hideDialog" :disabled="loading" />
+            <Button label="Salvar" icon="pi pi-check" class="p-button-text" @click="saveService" :loading="loading" />
         </template>
     </Dialog>
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, computed } from 'vue';
+import { useClientStore } from '@/stores/client';
+
+const clientStore = useClientStore();
 
 const props = defineProps({
     visible: {
@@ -90,13 +98,20 @@ const props = defineProps({
     service: {
         type: Object,
         required: true
+    },
+    loading: {
+        type: Boolean,
+        default: false
     }
 });
 
 const emit = defineEmits(['update:visible', 'save']);
 
 const submitted = ref(false);
-const clients = ref([]);
+const clients = computed(() => {
+    return clientStore.getClients || [];
+});
+const clientsLoading = computed(() => clientStore.isLoading);
 const serviceData = ref({ ...props.service });
 
 const calculationTypes = ref([
@@ -139,16 +154,9 @@ const saveService = () => {
 // Carregar lista de clientes quando o componente for montado
 onMounted(async () => {
     try {
-        // TODO: Implementar chamada à API para buscar clientes
-        // const response = await clientService.getClients();
-        // clients.value = response;
-        
-        // Mock de clientes para teste
-        clients.value = [
-            { id: 1, name: 'Cliente 1' },
-            { id: 2, name: 'Cliente 2' },
-            { id: 3, name: 'Cliente 3' }
-        ];
+        if (!clients.value.length) {
+            await clientStore.fetchClients();
+        }
     } catch (error) {
         console.error('Erro ao carregar clientes:', error);
     }
