@@ -1,35 +1,22 @@
-from django_filters import rest_framework as filters
-from django.db.models import Q
-from .models import Service
-from django.db import models
+import django_filters
+from .models import Service, Client
 
-class ServiceFilter(filters.FilterSet):
-    client = filters.CharFilter(method='filter_client')
-    assigned = filters.CharFilter(method='filter_assigned')
-    reviewing = filters.CharFilter(method='filter_reviewing')
-    start_date = filters.DateFilter(field_name='created_at', lookup_expr='gte')
-    end_date = filters.DateFilter(field_name='created_at', lookup_expr='lte')
-    deadline_start = filters.DateFilter(field_name='deadline', lookup_expr='gte')
-    deadline_end = filters.DateFilter(field_name='deadline', lookup_expr='lte')
-
+class ServiceFilter(django_filters.FilterSet):
+    client = django_filters.NumberFilter(field_name='client__id')
+    service_type = django_filters.NumberFilter(field_name='service_type__id')
+    status = django_filters.CharFilter(field_name='status')
+    assigned_to = django_filters.NumberFilter(field_name='assigned_to__id')
+    reviewer = django_filters.NumberFilter(field_name='reviewer__id')
+    created_by = django_filters.NumberFilter(field_name='created_by__id')
+    
     class Meta:
         model = Service
-        fields = ['status', 'calculation_type', 'client', 'assigned', 'reviewing']
+        fields = ['client', 'service_type', 'status', 'assigned_to', 'reviewer', 'created_by']
 
-    def filter_client(self, queryset, name, value):
-        return queryset.filter(
-            Q(client_name__icontains=value) | 
-            Q(client_document__icontains=value)
-        )
-
-    def filter_assigned(self, queryset, name, value):
-        if value == 'me':
-            return queryset.filter(assigned_to=self.request.user)
-        elif value == 'unassigned':
-            return queryset.filter(assigned_to__isnull=True)
-        return queryset
-
-    def filter_reviewing(self, queryset, name, value):
-        if value == 'me':
-            return queryset.filter(reviewer=self.request.user)
-        return queryset 
+class ClientFilter(django_filters.FilterSet):
+    document_type = django_filters.CharFilter(field_name='document_type')
+    status = django_filters.BooleanFilter(field_name='status')
+    
+    class Meta:
+        model = Client
+        fields = ['document_type', 'status'] 

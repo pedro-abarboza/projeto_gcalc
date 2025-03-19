@@ -1,17 +1,53 @@
 import api from './api';
 
 const userService = {
-    // Listar todos os usuários
-    async getUsers() {
+    // Listar todos os usuários com suporte a filtros e paginação
+    async getUsers(params = {}) {
         try {
-            const response = await api.get('/users/');
-            // Verificar se a resposta contém um array ou um objeto com resultados
-            if (response.data && Array.isArray(response.data)) {
-                return response.data;
-            } else if (response.data && Array.isArray(response.data.results)) {
-                return response.data.results;
+            // Construir query string para filtros
+            const queryParams = new URLSearchParams();
+            
+            // Adicionar parâmetros de paginação
+            if (params.page) {
+                queryParams.append('page', params.page);
             }
-            return [];
+            if (params.page_size) {
+                queryParams.append('page_size', params.page_size);
+            }
+            
+            // Adicionar parâmetros de ordenação
+            if (params.ordering) {
+                queryParams.append('ordering', params.ordering);
+            }
+            
+            // Adicionar parâmetros de busca
+            if (params.search) {
+                queryParams.append('search', params.search);
+            }
+            
+            // Adicionar filtros específicos
+            const filterFields = ['username', 'email', 'first_name', 'last_name', 'role', 'status'];
+            filterFields.forEach(field => {
+                if (params[field] !== undefined && params[field] !== null) {
+                    queryParams.append(field, params[field]);
+                }
+            });
+            
+            // Adicionar filtros de data
+            if (params.created_at_after) {
+                queryParams.append('created_at_after', params.created_at_after);
+            }
+            if (params.created_at_before) {
+                queryParams.append('created_at_before', params.created_at_before);
+            }
+            
+            // Construir URL com query string
+            const url = queryParams.toString() ? `/users/?${queryParams.toString()}` : '/users/';
+            
+            console.log('Buscando usuários com URL:', url);
+            const response = await api.get(url);
+            
+            return response.data;
         } catch (error) {
             console.error('Erro ao buscar usuários:', error);
             throw error;
@@ -54,7 +90,8 @@ const userService = {
             // Log para debug
             console.log(`Atualizando usuário ${id} com dados:`, dataToSend);
             
-            const response = await api.put(`/users/${id}/`, dataToSend);
+            // Usar PATCH em vez de PUT para permitir atualizações parciais
+            const response = await api.patch(`/users/${id}/`, dataToSend);
             console.log('Resposta da atualização:', response.data);
             return response.data;
         } catch (error) {

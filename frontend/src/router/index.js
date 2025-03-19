@@ -128,6 +128,15 @@ const routes = [
                 path: '/documentation',
                 name: 'documentation',
                 component: () => import('@/views/pages/Documentation.vue')
+            },
+            {
+                path: '/tipos-servico',
+                name: 'tipos-servico',
+                component: () => import('@/views/pages/TiposServicoCliente.vue'),
+                meta: {
+                    requiresAuth: true,
+                    breadcrumb: [{ label: 'Tipos de Serviço', to: '/tipos-servico' }]
+                }
             }
         ],
         meta: { requiresAuth: true }

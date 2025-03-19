@@ -4,23 +4,112 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django_filters import rest_framework as filters
-from .models import Service
-from .serializers import ServiceSerializer, ServiceListSerializer
-from .filters import ServiceFilter
+from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.pagination import PageNumberPagination
+from .models import Service, Client, ServiceTypeClient
+from .serializers import (
+    ServiceSerializer, ServiceListSerializer,
+    ClientSerializer, ClientListSerializer,
+    ServiceTypeClientSerializer, ServiceTypeClientListSerializer
+)
+from .filters import ServiceFilter, ClientFilter
 
 # Create your views here.
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+class ClientViewSet(viewsets.ModelViewSet):
+    queryset = Client.objects.all()
+    permission_classes = [IsAuthenticated]
+    filterset_class = ClientFilter
+    filter_backends = (filters.DjangoFilterBackend, SearchFilter, OrderingFilter)
+    search_fields = ['name', 'document_number', 'email', 'phone']
+    ordering_fields = ['name', 'document_type', 'document_number', 'created_at', 'status']
+    ordering = ['name']
+    pagination_class = StandardResultsSetPagination
+    serializer_class = ClientSerializer
+    
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ClientListSerializer
+        return ClientSerializer
+    
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+    
+    @action(detail=True, methods=['patch'])
+    def toggle_status(self, request, pk=None):
+        client = self.get_object()
+        client.status = not client.status
+        client.save()
+        serializer = ClientListSerializer(client)
+        return Response(serializer.data)
+
+class ServiceTypeClientViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint para tipos de serviço.
+    """
+    queryset = ServiceTypeClient.objects.all()
+    serializer_class = ServiceTypeClientSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [SearchFilter, OrderingFilter, filters.DjangoFilterBackend]
+    search_fields = ['name', 'description', 'client__name']
+    ordering_fields = ['name', 'created_at', 'price']
+    filterset_fields = ['client', 'status']
+    pagination_class = StandardResultsSetPagination
+    
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ServiceTypeClientListSerializer
+        return ServiceTypeClientSerializer
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filtrar por cliente
+        client_id = self.request.query_params.get('client_id')
+        if client_id:
+            queryset = queryset.filter(client_id=client_id)
+        
+        # Filtrar por status
+        status = self.request.query_params.get('status')
+        if status is not None:
+            if status.lower() == 'true':
+                queryset = queryset.filter(status=True)
+            elif status.lower() == 'false':
+                queryset = queryset.filter(status=False)
+        
+        return queryset
+    
+    @action(detail=True, methods=['patch'])
+    def toggle_status(self, request, pk=None):
+        service_type = self.get_object()
+        service_type.status = not service_type.status
+        service_type.save()
+        serializer = ServiceTypeClientListSerializer(service_type)
+        return Response(serializer.data)
 
 class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.all()
     permission_classes = [IsAuthenticated]
     filterset_class = ServiceFilter
-    filter_backends = (filters.DjangoFilterBackend,)
+    filter_backends = (filters.DjangoFilterBackend, SearchFilter, OrderingFilter)
+    search_fields = ['title', 'description', 'client__name', 'service_type__name']
+    ordering_fields = ['title', 'client__name', 'service_type__name', 'status', 'deadline', 'created_at']
+    ordering = ['-created_at']
+    pagination_class = StandardResultsSetPagination
     serializer_class = ServiceSerializer
     
     def get_serializer_class(self):
         if self.action == 'list':
             return ServiceListSerializer
         return ServiceSerializer
+    
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
     
     @action(detail=True, methods=['post'])
     def assign(self, request, pk=None):

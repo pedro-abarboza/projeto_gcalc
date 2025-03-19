@@ -41,17 +41,21 @@ const userStatus = computed({
 });
 
 const updateUser = (field, value) => {
+    console.log(`Atualizando campo ${field} para:`, value);
     const updatedUser = { ...props.user, [field]: value };
+    console.log('Usuário atualizado:', updatedUser);
     emit('update:user', updatedUser);
 };
 
 // Função para salvar o usuário
 const saveUser = () => {
+    console.log('Salvando usuário:', props.user);
     emit('save');
 };
 
 // Função para cancelar
 const cancelEdit = () => {
+    console.log('Cancelando edição');
     emit('cancel');
 };
 
@@ -155,8 +159,8 @@ watch(() => props.user, (newValue) => {
         </div>
         <div class="field">
             <label for="status">Status</label>
-            <div class="formgrid grid">
-                <div class="field-radiobutton col-6">
+            <div class="flex flex-wrap gap-4">
+                <div class="flex gap-2">
                     <RadioButton 
                         id="status_active" 
                         name="status" 
@@ -166,7 +170,7 @@ watch(() => props.user, (newValue) => {
                     />
                     <label for="status_active">Ativo</label>
                 </div>
-                <div class="field-radiobutton col-6">
+                <div class="flex gap-2">
                     <RadioButton 
                         id="status_inactive" 
                         name="status" 

@@ -51,20 +51,25 @@
 
     const saveUser = async () => {
         submitted.value = true;
+        console.log('Tentando salvar usuário:', user.value);
 
         if (user.value.username?.trim() && user.value.email?.trim() && 
             user.value.first_name?.trim() && user.value.last_name?.trim() && 
-            (!user.value.id || (user.value.password && user.value.password2 && user.value.password === user.value.password2))) {
+            (!user.value.id || (user.value.id && !user.value.password) || 
+             (user.value.password && user.value.password2 && user.value.password === user.value.password2))) {
             try {
                 if (user.value.id) {
+                    console.log('Atualizando usuário existente:', user.value.id);
                     await userStore.updateUser(user.value.id, user.value);
                     toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário Atualizado', life: 3000 });
                 } else {
+                    console.log('Criando novo usuário');
                     await userStore.createUser(user.value);
                     toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário Criado', life: 3000 });
                 }
                 userDialog.value = false;
                 user.value = {};
+                await loadUsers(); // Recarregar a lista após salvar
             } catch (error) {
                 console.error('Erro ao salvar usuário:', error);
                 
@@ -107,6 +112,24 @@
                     life: 5000 
                 });
             }
+        } else {
+            console.log('Validação falhou');
+            // Mostrar mensagem de erro se a validação falhar
+            if (user.value.password && user.value.password2 && user.value.password !== user.value.password2) {
+                toast.add({ 
+                    severity: 'error', 
+                    summary: 'Erro', 
+                    detail: 'As senhas não conferem', 
+                    life: 3000 
+                });
+            } else {
+                toast.add({ 
+                    severity: 'error', 
+                    summary: 'Erro', 
+                    detail: 'Por favor, preencha todos os campos obrigatórios', 
+                    life: 3000 
+                });
+            }
         }
     };
 
@@ -114,6 +137,15 @@
         console.log('Editando usuário:', editUser);
         // Criar uma cópia profunda do objeto para evitar referências
         user.value = JSON.parse(JSON.stringify(editUser));
+        
+        // Garantir que todos os campos necessários estejam presentes
+        user.value = {
+            ...user.value,
+            password: '',
+            password2: ''
+        };
+        
+        console.log('Objeto de usuário para edição:', user.value);
         userDialog.value = true;
     };
 
@@ -128,6 +160,7 @@
             deleteUserDialog.value = false;
             user.value = {};
             toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário Removido', life: 3000 });
+            await loadUsers(); // Recarregar a lista após excluir
         } catch (error) {
             toast.add({ severity: 'error', summary: 'Erro', detail: error.response?.data?.detail || 'Erro ao excluir usuário', life: 3000 });
         }
@@ -146,19 +179,35 @@
                 deleteUsersDialog.value = false;
                 selectedUsers.value = [];
                 toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuários excluídos com sucesso', life: 3000 });
+                await loadUsers(); // Recarregar a lista após excluir
             }
         } catch (error) {
             toast.add({ severity: 'error', summary: 'Erro', detail: error.response?.data?.detail || 'Erro ao excluir usuários', life: 3000 });
         }
     };
 
+    // Configuração de filtros padrão para o DataTable
     const filters = ref({
         global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        username: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
-        email: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
-        first_name: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
-        last_name: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+        username: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
+        email: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
+        first_name: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
+        last_name: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
+        role: { value: null, matchMode: FilterMatchMode.EQUALS },
+        status: { value: null, matchMode: FilterMatchMode.EQUALS }
     });
+
+    // Função para carregar todos os usuários de uma vez
+    const loadUsers = async () => {
+        try {
+            userStore.loading = true;
+            const response = await userStore.fetchAllUsers();
+            userStore.loading = false;
+        } catch (error) {
+            userStore.loading = false;
+            toast.add({ severity: 'error', summary: 'Erro', detail: error.response?.data?.detail || 'Erro ao carregar usuários', life: 3000 });
+        }
+    };
 
     const getRoleLabel = (role) => {
         switch (role) {
@@ -181,6 +230,7 @@
         try {
             await userStore.toggleStatus(user.id);
             toast.add({ severity: 'success', summary: 'Sucesso', detail: `Usuário ${getStatusLabel(!user.status)}`, life: 3000 });
+            await loadUsers(); // Recarregar a lista após alterar status
         } catch (error) {
             toast.add({ severity: 'error', summary: 'Erro', detail: error.response?.data?.detail || 'Erro ao alterar status do usuário', life: 3000 });
         }
@@ -188,7 +238,7 @@
 
     onMounted(async () => {
         try {
-            await userStore.fetchUsers();
+            await loadUsers();
         } catch (error) {
             toast.add({ severity: 'error', summary: 'Erro', detail: error.response?.data?.detail || 'Erro ao carregar usuários', life: 3000 });
         }
@@ -218,12 +268,14 @@
             dataKey="id"
             :paginator="true"
             :rows="10"
-            :filters="filters"
-            :exportFilename="'usuarios'"
+            :rowsPerPageOptions="[5, 10, 25, 50]"
             paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-            :rowsPerPageOptions="[5, 10, 25]"
             currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} usuários"
             :loading="loading"
+            :filters="filters"
+            :globalFilterFields="['username', 'email', 'first_name', 'last_name', 'role']"
+            :exportFilename="'usuarios'"
+            responsiveLayout="scroll"
         >
             <template #header>
                 <div class="flex flex-column md:flex-row md:justify-between md:align-items-center">
@@ -231,14 +283,12 @@
                         <h4 class="m-0">Gestão de Usuários</h4>
                     </span>
 
-                    <span class="block mt-2 md:mt-0 p-input-icon-left">
-                        <IconField>
-                            <InputIcon>
-                                <i class="pi pi-search" />
-                            </InputIcon>
-                            <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
-                        </IconField>
-                    </span>
+                    <IconField>
+                        <InputIcon>
+                            <i class="pi pi-search" />
+                        </InputIcon>
+                        <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
+                    </IconField>
                 </div>
             </template>
 
@@ -266,6 +316,18 @@
                 <template #body="slotProps">
                     {{ getRoleLabel(slotProps.data.role) }}
                 </template>
+                <template #filter="{ filterModel, filterCallback }">
+                    <Dropdown 
+                        v-model="filterModel.value" 
+                        :options="[{label: 'Todos', value: null}, {label: 'Administrador', value: 'admin'}, {label: 'Analista', value: 'analyst'}, {label: 'Revisor', value: 'reviewer'}]" 
+                        optionLabel="label" 
+                        optionValue="value" 
+                        placeholder="Selecione" 
+                        class="p-column-filter" 
+                        :showClear="true"
+                        @change="filterCallback()"
+                    />
+                </template>
             </Column>
             <Column field="status" header="Status" :sortable="true" headerStyle="width: 10%">
                 <template #body="slotProps">
@@ -274,6 +336,18 @@
                         :severity="getStatusSeverity(slotProps.data.status)" 
                         class="cursor-pointer"
                         @click="toggleUserStatus(slotProps.data)"
+                    />
+                </template>
+                <template #filter="{ filterModel, filterCallback }">
+                    <Dropdown 
+                        v-model="filterModel.value" 
+                        :options="[{label: 'Todos', value: null}, {label: 'Ativo', value: true}, {label: 'Inativo', value: false}]" 
+                        optionLabel="label" 
+                        optionValue="value" 
+                        placeholder="Selecione" 
+                        class="p-column-filter" 
+                        :showClear="true"
+                        @change="filterCallback()"
                     />
                 </template>
             </Column>
@@ -289,9 +363,9 @@
             <UserForm 
                 v-model:user="user"
                 :submitted="submitted"
+                :loading="loading"
                 @save="saveUser"
                 @cancel="hideDialog"
-                :loading="loading"
             />
         </Dialog>
 

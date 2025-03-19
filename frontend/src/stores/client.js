@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { clientService } from '@/services/clientService';
+import clientService from '@/services/clientService';
 
 /**
  * Store para gerenciar clientes
@@ -11,9 +11,22 @@ export const useClientStore = defineStore('client', {
         loading: false,
         error: null,
         pagination: {
+            count: 0,
+            next: null,
+            previous: null,
             page: 1,
             pageSize: 10,
-            totalItems: 0
+            totalPages: 0
+        },
+        filters: {
+            search: '',
+            name: '',
+            document_type: '',
+            document_number: '',
+            email: '',
+            phone: '',
+            status: null,
+            ordering: 'name'
         }
     }),
 
@@ -22,13 +35,25 @@ export const useClientStore = defineStore('client', {
          * Obtém a lista de clientes
          * @returns {Array} - Lista de clientes
          */
-        getClients: (state) => state.clients,
+        getClients: (state) => state.clients || [],
 
         /**
          * Obtém o cliente atual
          * @returns {Object|null} - Cliente atual
          */
         getCurrentClient: (state) => state.currentClient,
+
+        /**
+         * Retorna clientes ativos
+         * @returns {Array} - Lista de clientes ativos
+         */
+        getActiveClients: (state) => (state.clients || []).filter(client => client.status),
+
+        /**
+         * Retorna clientes inativos
+         * @returns {Array} - Lista de clientes inativos
+         */
+        getInactiveClients: (state) => (state.clients || []).filter(client => !client.status),
 
         /**
          * Verifica se está carregando
@@ -46,42 +71,102 @@ export const useClientStore = defineStore('client', {
          * Obtém a paginação
          * @returns {Object} - Informações de paginação
          */
-        getPagination: (state) => state.pagination
+        getPagination: (state) => state.pagination,
+
+        /**
+         * Retorna os filtros atuais
+         * @returns {Object} - Filtros atuais
+         */
+        getFilters: (state) => state.filters
     },
 
     actions: {
+        /**
+         * Atualiza os filtros
+         * @param {Object} newFilters - Novos filtros
+         */
+        updateFilters(newFilters) {
+            this.filters = { ...this.filters, ...newFilters };
+            // Resetar para a primeira página ao alterar filtros
+            this.pagination.page = 1;
+        },
+
+        /**
+         * Atualiza a paginação
+         * @param {Object} newPagination - Novas informações de paginação
+         */
+        updatePagination(newPagination) {
+            this.pagination = { ...this.pagination, ...newPagination };
+        },
+
+        /**
+         * Busca todos os clientes de uma vez (sem paginação)
+         */
+        async fetchAllClients() {
+            this.error = null;
+            try {
+                // Buscar todos os clientes com um tamanho de página grande
+                const params = {
+                    page_size: 1000, // Um valor grande para pegar todos os clientes
+                    ordering: 'name'
+                };
+                
+                console.log('Buscando todos os clientes');
+                const data = await clientService.getClients(params);
+                
+                // Atualizar clientes
+                this.clients = data.results || [];
+                
+                return data;
+            } catch (error) {
+                this.error = error.response?.data?.detail || 'Erro ao carregar clientes';
+                this.clients = [];
+                throw error;
+            }
+        },
+
         /**
          * Busca a lista de clientes
          * @param {Object} params - Parâmetros de paginação e filtros
          */
         async fetchClients(params = {}) {
+            this.loading = true;
+            this.error = null;
             try {
-                this.loading = true;
-                this.error = null;
-                
-                console.log('Buscando clientes no store com parâmetros:', params);
-                const response = await clientService.getClients(params);
-                
-                // Verifica se a resposta tem o formato esperado
-                if (response && response.results) {
-                    this.clients = response.results;
-                    this.pagination = {
-                        page: params.page || 1,
-                        pageSize: params.page_size || 10,
-                        totalItems: response.count || 0
-                    };
-                } else {
-                    // Caso a API não retorne no formato esperado
-                    this.clients = Array.isArray(response) ? response : [];
-                }
-                
-                console.log('Clientes carregados no store:', this.clients);
-            } catch (error) {
-                console.error('Erro ao buscar clientes no store:', error);
-                this.error = {
-                    message: error.response?.data?.detail || 'Erro ao buscar clientes',
-                    status: error.response?.status || 500
+                // Combinar filtros do estado com parâmetros adicionais
+                const queryParams = {
+                    ...this.filters,
+                    page: this.pagination.page,
+                    page_size: this.pagination.pageSize,
+                    ...params
                 };
+
+                // Remover parâmetros vazios
+                Object.keys(queryParams).forEach(key => {
+                    if (queryParams[key] === '' || queryParams[key] === null || queryParams[key] === undefined) {
+                        delete queryParams[key];
+                    }
+                });
+
+                console.log('Buscando clientes com parâmetros:', queryParams);
+                const data = await clientService.getClients(queryParams);
+                
+                // Atualizar clientes e informações de paginação
+                this.clients = data.results || [];
+                this.pagination = {
+                    count: data.count || 0,
+                    next: data.next,
+                    previous: data.previous,
+                    page: params.page || this.pagination.page,
+                    pageSize: params.page_size || this.pagination.pageSize,
+                    totalPages: Math.ceil((data.count || 0) / (params.page_size || this.pagination.pageSize))
+                };
+                
+                return data;
+            } catch (error) {
+                this.error = error.response?.data?.detail || 'Erro ao carregar clientes';
+                this.clients = [];
+                throw error;
             } finally {
                 this.loading = false;
             }
@@ -92,21 +177,24 @@ export const useClientStore = defineStore('client', {
          * @param {number} id - ID do cliente
          */
         async fetchClient(id) {
+            this.loading = true;
+            this.error = null;
             try {
-                this.loading = true;
-                this.error = null;
+                const data = await clientService.getClient(id);
+                if (!data) return null;
                 
-                console.log(`Buscando cliente com ID ${id} no store`);
-                const client = await clientService.getClient(id);
-                this.currentClient = client;
+                this.currentClient = data;
                 
-                console.log('Cliente carregado no store:', this.currentClient);
+                const index = this.clients.findIndex(client => client.id === id);
+                if (index !== -1) {
+                    this.clients[index] = data;
+                } else {
+                    this.clients.push(data);
+                }
+                return data;
             } catch (error) {
-                console.error(`Erro ao buscar cliente com ID ${id} no store:`, error);
-                this.error = {
-                    message: error.response?.data?.detail || `Erro ao buscar cliente com ID ${id}`,
-                    status: error.response?.status || 500
-                };
+                this.error = error.response?.data?.detail || 'Erro ao carregar cliente';
+                throw error;
             } finally {
                 this.loading = false;
             }
@@ -118,24 +206,15 @@ export const useClientStore = defineStore('client', {
          * @returns {Object} - Cliente criado
          */
         async createClient(clientData) {
+            this.loading = true;
+            this.error = null;
             try {
-                this.loading = true;
-                this.error = null;
-                
-                console.log('Criando cliente no store com dados:', clientData);
-                const newClient = await clientService.createClient(clientData);
-                
-                // Adiciona o novo cliente à lista
-                this.clients.push(newClient);
-                
-                console.log('Cliente criado no store:', newClient);
-                return newClient;
+                const data = await clientService.createClient(clientData);
+                // Recarregar a lista após criar um novo cliente
+                await this.fetchClients();
+                return data;
             } catch (error) {
-                console.error('Erro ao criar cliente no store:', error);
-                this.error = {
-                    message: error.response?.data?.detail || 'Erro ao criar cliente',
-                    status: error.response?.status || 500
-                };
+                this.error = error.response?.data?.detail || 'Erro ao criar cliente';
                 throw error;
             } finally {
                 this.loading = false;
@@ -149,32 +228,29 @@ export const useClientStore = defineStore('client', {
          * @returns {Object} - Cliente atualizado
          */
         async updateClient(id, clientData) {
+            this.loading = true;
+            this.error = null;
             try {
-                this.loading = true;
-                this.error = null;
+                const data = await clientService.updateClient(id, clientData);
+                if (!data) {
+                    console.error('Nenhum dado retornado da API após atualização');
+                    return null;
+                }
                 
-                console.log(`Atualizando cliente com ID ${id} no store com dados:`, clientData);
-                const updatedClient = await clientService.updateClient(id, clientData);
-                
-                // Atualiza o cliente na lista
-                const index = this.clients.findIndex(c => c.id === id);
+                // Atualizar o cliente na lista
+                const index = this.clients.findIndex(client => client.id === id);
                 if (index !== -1) {
-                    this.clients[index] = updatedClient;
+                    this.clients[index] = data;
                 }
                 
-                // Atualiza o cliente atual se for o mesmo
+                // Se for o cliente atual, atualizar também
                 if (this.currentClient && this.currentClient.id === id) {
-                    this.currentClient = updatedClient;
+                    this.currentClient = data;
                 }
                 
-                console.log('Cliente atualizado no store:', updatedClient);
-                return updatedClient;
+                return data;
             } catch (error) {
-                console.error(`Erro ao atualizar cliente com ID ${id} no store:`, error);
-                this.error = {
-                    message: error.response?.data?.detail || `Erro ao atualizar cliente com ID ${id}`,
-                    status: error.response?.status || 500
-                };
+                this.error = error.response?.data?.detail || 'Erro ao atualizar cliente';
                 throw error;
             } finally {
                 this.loading = false;
@@ -186,28 +262,52 @@ export const useClientStore = defineStore('client', {
          * @param {number} id - ID do cliente a ser excluído
          */
         async deleteClient(id) {
+            this.loading = true;
+            this.error = null;
             try {
-                this.loading = true;
-                this.error = null;
-                
-                console.log(`Excluindo cliente com ID ${id} no store`);
                 await clientService.deleteClient(id);
+                // Recarregar a lista após excluir um cliente
+                await this.fetchClients();
                 
-                // Remove o cliente da lista
-                this.clients = this.clients.filter(c => c.id !== id);
-                
-                // Limpa o cliente atual se for o mesmo
+                // Se for o cliente atual, limpar
                 if (this.currentClient && this.currentClient.id === id) {
                     this.currentClient = null;
                 }
                 
-                console.log(`Cliente com ID ${id} excluído do store`);
+                return true;
             } catch (error) {
-                console.error(`Erro ao excluir cliente com ID ${id} no store:`, error);
-                this.error = {
-                    message: error.response?.data?.detail || `Erro ao excluir cliente com ID ${id}`,
-                    status: error.response?.status || 500
-                };
+                this.error = error.response?.data?.detail || 'Erro ao excluir cliente';
+                throw error;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        /**
+         * Alterna o status do cliente (ativo/inativo)
+         * @param {number} id - ID do cliente
+         */
+        async toggleStatus(id) {
+            this.loading = true;
+            this.error = null;
+            try {
+                const data = await clientService.toggleStatus(id);
+                if (!data) return null;
+                
+                // Atualizar o cliente na lista
+                const index = this.clients.findIndex(client => client.id === id);
+                if (index !== -1) {
+                    this.clients[index] = data;
+                }
+                
+                // Se for o cliente atual, atualizar também
+                if (this.currentClient && this.currentClient.id === id) {
+                    this.currentClient = data;
+                }
+                
+                return data;
+            } catch (error) {
+                this.error = error.response?.data?.detail || 'Erro ao alternar status do cliente';
                 throw error;
             } finally {
                 this.loading = false;
@@ -222,10 +322,31 @@ export const useClientStore = defineStore('client', {
         },
 
         /**
-         * Limpa o cliente atual
+         * Reseta o estado
          */
-        clearCurrentClient() {
+        resetState() {
+            this.clients = [];
             this.currentClient = null;
+            this.loading = false;
+            this.error = null;
+            this.pagination = {
+                count: 0,
+                next: null,
+                previous: null,
+                page: 1,
+                pageSize: 10,
+                totalPages: 0
+            };
+            this.filters = {
+                search: '',
+                name: '',
+                document_type: '',
+                document_number: '',
+                email: '',
+                phone: '',
+                status: null,
+                ordering: 'name'
+            };
         }
     }
 }); 

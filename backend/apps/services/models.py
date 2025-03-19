@@ -3,6 +3,106 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+class Client(models.Model):
+    DOCUMENT_TYPE_CHOICES = [
+        ('cpf', 'CPF'),
+        ('cnpj', 'CNPJ'),
+    ]
+    
+    name = models.CharField(
+        max_length=200,
+        verbose_name='Nome'
+    )
+    
+    document_type = models.CharField(
+        max_length=4,
+        choices=DOCUMENT_TYPE_CHOICES,
+        default='cpf',
+        verbose_name='Tipo de Documento'
+    )
+    
+    document_number = models.CharField(
+        max_length=20,
+        unique=True,
+        verbose_name='Número do Documento'
+    )
+    
+    email = models.EmailField(
+        null=True,
+        blank=True,
+        verbose_name='E-mail'
+    )
+    
+    phone = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        verbose_name='Telefone'
+    )
+    
+    address = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name='Endereço'
+    )
+    
+    notes = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name='Observações'
+    )
+    
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='created_clients',
+        verbose_name='Criado por'
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Criado em'
+    )
+    
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Atualizado em'
+    )
+    
+    status = models.BooleanField(
+        default=True,
+        verbose_name='Ativo'
+    )
+    
+    class Meta:
+        verbose_name = 'Cliente'
+        verbose_name_plural = 'Clientes'
+        ordering = ['name']
+    
+    def __str__(self):
+        return f"{self.name} ({self.document_number})"
+
+class ServiceTypeClient(models.Model):
+    """
+    Modelo para tipos de serviço vinculados a clientes específicos.
+    """
+    name = models.CharField(max_length=100, verbose_name="Nome")
+    description = models.TextField(blank=True, null=True, verbose_name="Descrição")
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Preço Base")
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="service_types", verbose_name="Cliente")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="created_service_types_client", verbose_name="Criado por")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Data de Atualização")
+    status = models.BooleanField(default=True, verbose_name="Ativo")
+
+    class Meta:
+        verbose_name = "Tipo de Serviço"
+        verbose_name_plural = "Tipos de Serviço"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} - {self.client.name}"
+
 class Service(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pendente'),
@@ -36,14 +136,18 @@ class Service(models.Model):
         verbose_name='Tipo de Cálculo'
     )
     
-    client_name = models.CharField(
-        max_length=200,
-        verbose_name='Nome do Cliente'
+    service_type = models.ForeignKey(
+        ServiceTypeClient,
+        on_delete=models.PROTECT,
+        related_name='services',
+        verbose_name='Tipo de Serviço'
     )
     
-    client_document = models.CharField(
-        max_length=20,
-        verbose_name='Documento do Cliente'
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.PROTECT,
+        related_name='services',
+        verbose_name='Cliente'
     )
     
     status = models.CharField(
@@ -121,4 +225,4 @@ class Service(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.title} - {self.client_name}"
+        return f"{self.title} - {self.client.name}"

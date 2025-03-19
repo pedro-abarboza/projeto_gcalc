@@ -2,7 +2,7 @@
     import { ref, onMounted, computed } from 'vue';
     import { useToast } from 'primevue/usetoast';
     import { FilterMatchMode } from '@primevue/core/api';
-    import ServiceForm from '@/components/ServiceForm.vue';
+    import ServiceForm from '@/components/forms/ServiceForm.vue';
     import { useServiceStore } from '@/stores/service';
 
     const serviceStore = useServiceStore();
@@ -25,6 +25,7 @@
     const filters = ref({
         'global': { value: null, matchMode: FilterMatchMode.CONTAINS }
     });
+    const submitted = ref(false);
 
     const formatDate = (value) => {
         if (!value) return '';
@@ -127,16 +128,28 @@
     };
 
     const saveService = async (data) => {
+        submitted.value = true;
+        
+        // Validar campos obrigatórios
+        if (!data.title || !data.client_id || !data.service_type_id || 
+            !data.calculation_type || !data.description || !data.status) {
+            return;
+        }
+        
         try {
-            if (data.id) {
-                await serviceStore.updateService(data.id, data);
+            // Preparar dados para envio à API
+            const serviceData = { ...data };
+            
+            if (serviceData.id) {
+                await serviceStore.updateService(serviceData.id, serviceData);
                 toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Serviço atualizado', life: 3000 });
             } else {
-                await serviceStore.createService(data);
+                await serviceStore.createService(serviceData);
                 toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Serviço criado', life: 3000 });
             }
             serviceDialog.value = false;
             service.value = {};
+            submitted.value = false;
         } catch (error) {
             console.error('Erro ao salvar serviço:', error);
             
@@ -170,19 +183,29 @@
                     // Resposta de erro como string
                     errorMessage = responseData;
                 }
+            } else if (error.message) {
+                // Erro com mensagem
+                errorMessage = error.message;
             }
             
             toast.add({ 
                 severity: 'error', 
                 summary: 'Erro', 
                 detail: errorMessage, 
-                life: 5000 
+                life: 5000,
+                sticky: errorMessage.includes('\n') // Tornar mensagens com múltiplas linhas fixas
             });
         }
     };
 
     const exportCSV = () => {
         dt.value?.exportCSV();
+    };
+
+    const hideDialog = () => {
+        serviceDialog.value = false;
+        service.value = {};
+        submitted.value = false;
     };
 
     onMounted(async () => {
@@ -213,7 +236,7 @@
                     </template>
 
                     <template #end>
-                        <Button label="Exportar" icon="pi pi-upload" class="p-button-help" @click="exportCSV" :disabled="loading" />
+                        <Button label="Exportar" icon="pi pi-upload" severity="secondary" @click="exportCSV" :disabled="loading" />
                     </template>
                 </Toolbar>
 
@@ -228,22 +251,20 @@
                     paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
                     :rowsPerPageOptions="[5, 10, 25]"
                     currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} serviços"
-                    responsiveLayout="scroll"
                     :loading="loading"
                 >
                     <template #header>
                         <div class="flex flex-column md:flex-row md:justify-between md:align-items-center">
                             <span class="block mt-2 md:mt-0 p-input-icon-left">
-                                <h4 class="m-0">Gerenciar Serviços</h4>
+                                <h4 class="m-0">Gestão de Serviços</h4>
                             </span>
-                            <span class="block mt-2 md:mt-0 p-input-icon-left">
-                                <IconField>
-                                    <InputIcon>
-                                        <i class="pi pi-search" />
-                                    </InputIcon>
-                                    <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
-                                </IconField>
-                            </span>
+
+                            <IconField>
+                                <InputIcon>
+                                    <i class="pi pi-search" />
+                                </InputIcon>
+                                <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
+                            </IconField>
                         </div>
                     </template>
 
@@ -302,16 +323,18 @@
                     <Column headerStyle="min-width:10rem;">
                         <template #body="slotProps">
                             <Button icon="pi pi-pencil" class="p-button-rounded p-button-success mr-2" @click="editService(slotProps.data)" :disabled="loading" />
-                            <Button icon="pi pi-trash" class="p-button-rounded p-button-warning mt-2" @click="confirmDeleteService(slotProps.data)" :disabled="loading" />
+                            <Button icon="pi pi-trash" class="p-button-rounded p-button-danger mt-2" @click="confirmDeleteService(slotProps.data)" :disabled="loading" />
                         </template>
                     </Column>
                 </DataTable>
 
                 <ServiceForm
                     v-model:visible="serviceDialog"
-                    :service="service"
-                    @save="saveService"
+                    v-model:service="service"
+                    :submitted="submitted"
                     :loading="loading"
+                    @save="saveService"
+                    @cancel="hideDialog"
                 />
 
                 <Dialog v-model:visible="deleteServiceDialog" :style="{ width: '450px' }" header="Confirmar" :modal="true">

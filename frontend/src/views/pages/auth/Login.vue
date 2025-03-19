@@ -36,7 +36,10 @@ const handleLogin = async () => {
         }
 
         loading.value = true;
-        await authService.login(username.value, password.value);
+        await authService.login({
+            username: username.value,
+            password: password.value
+        });
         
         if (checked.value) {
             localStorage.setItem('rememberedUsername', username.value);
@@ -44,7 +47,7 @@ const handleLogin = async () => {
             localStorage.removeItem('rememberedUsername');
         }
 
-        router.push('/');
+        router.push({ name: 'dashboard' });
         
         toast.add({
             severity: 'success',
@@ -53,10 +56,11 @@ const handleLogin = async () => {
             life: 3000
         });
     } catch (error) {
+        console.error('Erro de login:', error);
         toast.add({
             severity: 'error',
             summary: 'Erro',
-            detail: error.message,
+            detail: error.response?.data?.detail || 'Falha na autenticação. Verifique suas credenciais.',
             life: 3000
         });
     } finally {

@@ -1,17 +1,59 @@
 import api from './api';
 
 const serviceService = {
-    // Listar todos os serviços
+    // Listar todos os serviços com suporte a filtros e paginação
     async getServices(params = {}) {
         try {
-            const response = await api.get('/services/', { params });
-            // Verificar se a resposta contém um array ou um objeto com resultados
-            if (response.data && Array.isArray(response.data)) {
-                return response.data;
-            } else if (response.data && Array.isArray(response.data.results)) {
-                return response.data.results;
+            // Construir query string para filtros
+            const queryParams = new URLSearchParams();
+            
+            // Adicionar parâmetros de paginação
+            if (params.page) {
+                queryParams.append('page', params.page);
             }
-            return [];
+            if (params.page_size) {
+                queryParams.append('page_size', params.page_size);
+            }
+            
+            // Adicionar parâmetros de ordenação
+            if (params.ordering) {
+                queryParams.append('ordering', params.ordering);
+            }
+            
+            // Adicionar parâmetros de busca
+            if (params.search) {
+                queryParams.append('search', params.search);
+            }
+            
+            // Adicionar filtros específicos
+            const filterFields = ['status', 'client', 'service_type', 'assigned', 'reviewing'];
+            filterFields.forEach(field => {
+                if (params[field] !== undefined && params[field] !== null) {
+                    queryParams.append(field, params[field]);
+                }
+            });
+            
+            // Adicionar filtros de data
+            if (params.start_date) {
+                queryParams.append('start_date', params.start_date);
+            }
+            if (params.end_date) {
+                queryParams.append('end_date', params.end_date);
+            }
+            if (params.deadline_start) {
+                queryParams.append('deadline_start', params.deadline_start);
+            }
+            if (params.deadline_end) {
+                queryParams.append('deadline_end', params.deadline_end);
+            }
+            
+            // Construir URL com query string
+            const url = queryParams.toString() ? `/services/services/?${queryParams.toString()}` : '/services/services/';
+            
+            console.log('Buscando serviços com URL:', url);
+            const response = await api.get(url);
+            
+            return response.data;
         } catch (error) {
             console.error('Erro ao buscar serviços:', error);
             throw error;
@@ -21,7 +63,7 @@ const serviceService = {
     // Obter um serviço específico
     async getService(id) {
         try {
-            const response = await api.get(`/services/${id}/`);
+            const response = await api.get(`/services/services/${id}/`);
             return response.data;
         } catch (error) {
             console.error(`Erro ao buscar serviço ${id}:`, error);
@@ -32,7 +74,7 @@ const serviceService = {
     // Criar um novo serviço
     async createService(serviceData) {
         try {
-            const response = await api.post('/services/', serviceData);
+            const response = await api.post('/services/services/', serviceData);
             return response.data;
         } catch (error) {
             console.error('Erro ao criar serviço:', error);
@@ -43,13 +85,10 @@ const serviceService = {
     // Atualizar um serviço existente
     async updateService(id, serviceData) {
         try {
-            console.log(`Atualizando serviço ${id} com dados:`, serviceData);
-            const response = await api.put(`/services/${id}/`, serviceData);
-            console.log('Resposta da atualização:', response.data);
+            const response = await api.patch(`/services/services/${id}/`, serviceData);
             return response.data;
         } catch (error) {
             console.error(`Erro ao atualizar serviço ${id}:`, error);
-            console.error('Detalhes do erro:', error.response?.data);
             throw error;
         }
     },
@@ -57,7 +96,7 @@ const serviceService = {
     // Excluir um serviço
     async deleteService(id) {
         try {
-            await api.delete(`/services/${id}/`);
+            await api.delete(`/services/services/${id}/`);
             return true;
         } catch (error) {
             console.error(`Erro ao excluir serviço ${id}:`, error);
@@ -65,15 +104,35 @@ const serviceService = {
         }
     },
 
-    // Atualizar status de um serviço
-    async updateStatus(id, status) {
+    // Atribuir um serviço a um usuário
+    async assignService(id, userId) {
         try {
-            console.log(`Atualizando status do serviço ${id} para ${status}`);
-            const response = await api.patch(`/services/${id}/status/`, { status });
-            console.log('Resposta da atualização de status:', response.data);
+            const response = await api.post(`/services/services/${id}/assign/`, { user_id: userId });
             return response.data;
         } catch (error) {
-            console.error(`Erro ao atualizar status do serviço ${id}:`, error);
+            console.error(`Erro ao atribuir serviço ${id} ao usuário ${userId}:`, error);
+            throw error;
+        }
+    },
+
+    // Enviar um serviço para revisão
+    async reviewService(id, userId) {
+        try {
+            const response = await api.post(`/services/services/${id}/review/`, { user_id: userId });
+            return response.data;
+        } catch (error) {
+            console.error(`Erro ao enviar serviço ${id} para revisão pelo usuário ${userId}:`, error);
+            throw error;
+        }
+    },
+
+    // Alterar o status de um serviço
+    async changeServiceStatus(id, status) {
+        try {
+            const response = await api.post(`/services/services/${id}/change_status/`, { status });
+            return response.data;
+        } catch (error) {
+            console.error(`Erro ao alterar status do serviço ${id} para ${status}:`, error);
             throw error;
         }
     }

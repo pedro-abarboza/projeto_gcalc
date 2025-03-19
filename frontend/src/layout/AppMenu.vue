@@ -13,7 +13,8 @@ const model = ref([
         items: [
             { label: 'Usuários', icon: 'pi pi-fw pi-users', to: '/usuarios' },
             { label: 'Clientes', icon: 'pi pi-fw pi-building', to: '/clientes' },
-            { label: 'Serviços', icon: 'pi pi-fw pi-briefcase', to: '/servicos' }
+            { label: 'Serviços', icon: 'pi pi-fw pi-briefcase', to: '/servicos' },
+            { label: 'Tipos de Serviço', icon: 'pi pi-fw pi-list', to: '/tipos-servico' }
         ]
     },
     {

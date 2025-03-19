@@ -57,6 +57,8 @@ media/*
 coverage.xml
 */coverage.xml
 sakai-vue/*
+migrations/*
+*/migrations/*
 
 
 # O index sempre será substituído pelo readme
