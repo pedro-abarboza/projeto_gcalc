@@ -1,5 +1,6 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
+import { useRoleStore } from '@/stores/role';
 
 const props = defineProps({
     user: {
@@ -10,8 +11,8 @@ const props = defineProps({
             email: '',
             first_name: '',
             last_name: '',
-            role: 'analyst',
-            status: true,
+            group_ids: [],
+            is_active: true,
             password: '',
             password2: ''
         })
@@ -27,17 +28,29 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:user', 'save', 'cancel']);
+const roleStore = useRoleStore();
 
-const roles = ref([
-    { value: 'admin', label: 'Administrador' },
-    { value: 'analyst', label: 'Analista' },
-    { value: 'reviewer', label: 'Revisor' }
-]);
+const roles = ref([]);
+const rolesLoading = ref(false);
+
+// Buscar funções disponíveis
+const fetchRoles = async () => {
+    rolesLoading.value = true;
+    try {
+        await roleStore.fetchRoles({ page_size: 100 });
+        roles.value = roleStore.getRoles || [];
+        console.log('Funções disponíveis:', roles.value);
+    } catch (error) {
+        console.error('Erro ao buscar funções:', error);
+    } finally {
+        rolesLoading.value = false;
+    }
+};
 
 // Computed para garantir que o status seja booleano
-const userStatus = computed({
-    get: () => !!props.user?.status,
-    set: (value) => updateUser('status', value)
+const userIsActive = computed({
+    get: () => !!props.user?.is_active,
+    set: (value) => updateUser('is_active', value)
 });
 
 const updateUser = (field, value) => {
@@ -63,6 +76,11 @@ const cancelEdit = () => {
 watch(() => props.user, (newValue) => {
     console.log('User data changed:', newValue);
 }, { deep: true });
+
+// Buscar funções ao montar o componente
+onMounted(async () => {
+    await fetchRoles();
+});
 </script>
 
 <template>
@@ -144,41 +162,43 @@ watch(() => props.user, (newValue) => {
             <small class="p-invalid" v-if="submitted && user?.password && user?.password2 && user?.password !== user?.password2">As senhas não conferem.</small>
         </div>
         <div class="field">
-            <label for="role">Função</label>
-            <Dropdown 
-                id="role" 
-                :modelValue="user?.role"
-                @update:modelValue="value => updateUser('role', value)"
+            <label for="group_ids">Funções</label>
+            <MultiSelect 
+                id="group_ids" 
+                :modelValue="user?.group_ids || []"
+                @update:modelValue="value => updateUser('group_ids', value)"
                 :options="roles" 
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Selecione uma função"
+                optionLabel="name"
+                optionValue="id"
+                placeholder="Selecione as funções"
                 class="w-full"
-                :disabled="loading"
+                :disabled="loading || rolesLoading"
+                :loading="rolesLoading"
+                display="chip"
             />
         </div>
         <div class="field">
-            <label for="status">Status</label>
+            <label for="is_active">Status</label>
             <div class="flex flex-wrap gap-4">
                 <div class="flex gap-2">
                     <RadioButton 
-                        id="status_active" 
-                        name="status" 
+                        id="is_active_true" 
+                        name="is_active" 
                         :value="true" 
-                        v-model="userStatus"
+                        v-model="userIsActive"
                         :disabled="loading" 
                     />
-                    <label for="status_active">Ativo</label>
+                    <label for="is_active_true">Ativo</label>
                 </div>
                 <div class="flex gap-2">
                     <RadioButton 
-                        id="status_inactive" 
-                        name="status" 
+                        id="is_active_false" 
+                        name="is_active" 
                         :value="false" 
-                        v-model="userStatus"
+                        v-model="userIsActive"
                         :disabled="loading" 
                     />
-                    <label for="status_inactive">Inativo</label>
+                    <label for="is_active_false">Inativo</label>
                 </div>
             </div>
         </div>

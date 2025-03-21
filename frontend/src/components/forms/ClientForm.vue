@@ -2,10 +2,6 @@
 import { ref, reactive, watch, computed } from 'vue';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-        required: true
-    },
     client: {
         type: Object,
         required: true,
@@ -73,8 +69,25 @@ watch(() => props.client, (newValue) => {
 </script>
 
 <style scoped>
+.form-container {
+    padding: 1rem;
+}
+
 .field {
     margin-bottom: 1.5rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 2rem;
 }
 </style> 
 
@@ -124,14 +137,15 @@ watch(() => props.client, (newValue) => {
         </div>
 
         <div class="field">
-            <label for="email">Email</label>
+            <label for="email">Email *</label>
             <InputText 
                 id="email" 
                 :modelValue="client?.email || ''"
                 @update:modelValue="value => updateClient('email', value?.trim())"
-                :class="{'p-invalid': submitted && client.email && !isValidEmail(client.email)}"
+                :class="{'p-invalid': submitted && (!client.email || (client.email && !isValidEmail(client.email)))}"
                 :disabled="loading" 
             />
+            <small class="p-error" v-if="submitted && !client.email">Email é obrigatório.</small>
             <small class="p-error" v-if="submitted && client.email && !isValidEmail(client.email)">Email inválido.</small>
         </div>
 
@@ -168,7 +182,7 @@ watch(() => props.client, (newValue) => {
         </div>
 
         <div class="field">
-            <label for="status" class="mb-3">Status</label>
+            <label for="status">Status</label>
             <div class="flex flex-wrap gap-4">
                 <div class="flex gap-2">
                     <RadioButton 
@@ -204,7 +218,7 @@ watch(() => props.client, (newValue) => {
             <Button 
                 label="Salvar" 
                 icon="pi pi-check" 
-                class="p-button-text" 
+                class="p-button-primary" 
                 @click="saveClient" 
                 :loading="loading"
             />

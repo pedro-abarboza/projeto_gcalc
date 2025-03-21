@@ -1,12 +1,5 @@
 from django.contrib import admin
-from .models import Service, Client, ServiceTypeClient
-
-@admin.register(Client)
-class ClientAdmin(admin.ModelAdmin):
-    list_display = ('name', 'document_type', 'document_number', 'email', 'phone', 'status')
-    list_filter = ('document_type', 'status')
-    search_fields = ('name', 'document_number', 'email', 'phone')
-    readonly_fields = ('created_at', 'updated_at')
+from .models import Service, ServiceTypeClient
 
 @admin.register(ServiceTypeClient)
 class ServiceTypeClientAdmin(admin.ModelAdmin):

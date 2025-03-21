@@ -48,7 +48,7 @@ const serviceService = {
             }
             
             // Construir URL com query string
-            const url = queryParams.toString() ? `/services/services/?${queryParams.toString()}` : '/services/services/';
+            const url = queryParams.toString() ? `/api/services/?${queryParams.toString()}` : '/api/services/';
             
             console.log('Buscando serviços com URL:', url);
             const response = await api.get(url);
@@ -63,7 +63,7 @@ const serviceService = {
     // Obter um serviço específico
     async getService(id) {
         try {
-            const response = await api.get(`/services/services/${id}/`);
+            const response = await api.get(`/api/services/${id}/`);
             return response.data;
         } catch (error) {
             console.error(`Erro ao buscar serviço ${id}:`, error);
@@ -74,7 +74,7 @@ const serviceService = {
     // Criar um novo serviço
     async createService(serviceData) {
         try {
-            const response = await api.post('/services/services/', serviceData);
+            const response = await api.post('/api/services/', serviceData);
             return response.data;
         } catch (error) {
             console.error('Erro ao criar serviço:', error);
@@ -85,7 +85,7 @@ const serviceService = {
     // Atualizar um serviço existente
     async updateService(id, serviceData) {
         try {
-            const response = await api.patch(`/services/services/${id}/`, serviceData);
+            const response = await api.patch(`/api/services/${id}/`, serviceData);
             return response.data;
         } catch (error) {
             console.error(`Erro ao atualizar serviço ${id}:`, error);
@@ -96,7 +96,7 @@ const serviceService = {
     // Excluir um serviço
     async deleteService(id) {
         try {
-            await api.delete(`/services/services/${id}/`);
+            await api.delete(`/api/services/${id}/`);
             return true;
         } catch (error) {
             console.error(`Erro ao excluir serviço ${id}:`, error);
@@ -107,7 +107,7 @@ const serviceService = {
     // Atribuir um serviço a um usuário
     async assignService(id, userId) {
         try {
-            const response = await api.post(`/services/services/${id}/assign/`, { user_id: userId });
+            const response = await api.post(`/api/services/${id}/assign/`, { user_id: userId });
             return response.data;
         } catch (error) {
             console.error(`Erro ao atribuir serviço ${id} ao usuário ${userId}:`, error);
@@ -118,7 +118,7 @@ const serviceService = {
     // Enviar um serviço para revisão
     async reviewService(id, userId) {
         try {
-            const response = await api.post(`/services/services/${id}/review/`, { user_id: userId });
+            const response = await api.post(`/api/services/${id}/review/`, { user_id: userId });
             return response.data;
         } catch (error) {
             console.error(`Erro ao enviar serviço ${id} para revisão pelo usuário ${userId}:`, error);
@@ -129,7 +129,7 @@ const serviceService = {
     // Alterar o status de um serviço
     async changeServiceStatus(id, status) {
         try {
-            const response = await api.post(`/services/services/${id}/change_status/`, { status });
+            const response = await api.post(`/api/services/${id}/change_status/`, { status });
             return response.data;
         } catch (error) {
             console.error(`Erro ao alterar status do serviço ${id} para ${status}:`, error);

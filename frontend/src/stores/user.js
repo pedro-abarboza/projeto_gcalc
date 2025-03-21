@@ -21,9 +21,9 @@ export const useUserStore = defineStore('user', {
             email: '',
             first_name: '',
             last_name: '',
-            role: '',
-            status: null,
-            ordering: '-created_at'
+            groups: [],
+            is_active: null,
+            ordering: '-date_joined'
         }
     }),
 
@@ -35,10 +35,10 @@ export const useUserStore = defineStore('user', {
         getCurrentUser: (state) => state.currentUser,
 
         // Retorna usuários ativos
-        getActiveUsers: (state) => (state.users || []).filter(user => user.status),
+        getActiveUsers: (state) => (state.users || []).filter(user => user.is_active),
 
         // Retorna usuários inativos
-        getInactiveUsers: (state) => (state.users || []).filter(user => !user.status),
+        getInactiveUsers: (state) => (state.users || []).filter(user => !user.is_active),
 
         // Retorna o status de carregamento
         isLoading: (state) => state.loading,
@@ -257,17 +257,19 @@ export const useUserStore = defineStore('user', {
             this.error = null;
             try {
                 const data = await userService.toggleStatus(id);
-                if (!data) return null;
                 
-                // Atualizar o usuário na lista
+                if (this.currentUser && this.currentUser.id === id) {
+                    this.currentUser.is_active = data.status;
+                }
+                
                 const index = this.users.findIndex(user => user.id === id);
                 if (index !== -1) {
-                    this.users[index] = data;
+                    this.users[index].is_active = data.status;
                 }
                 
                 return data;
             } catch (error) {
-                this.error = error.response?.data?.detail || 'Erro ao alterar status do usuário';
+                this.error = error.response?.data?.detail || 'Erro ao alternar status do usuário';
                 throw error;
             } finally {
                 this.loading = false;
@@ -331,9 +333,9 @@ export const useUserStore = defineStore('user', {
                 email: '',
                 first_name: '',
                 last_name: '',
-                role: '',
-                status: null,
-                ordering: '-created_at'
+                groups: [],
+                is_active: null,
+                ordering: '-date_joined'
             };
         }
     }

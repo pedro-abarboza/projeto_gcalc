@@ -3,14 +3,14 @@ import api from './api';
 export const authService = {
     async login(credentials) {
         try {
-            const response = await api.post('/token/', credentials);
+            const response = await api.post('/api/auth/token/', credentials);
             const { access, refresh } = response.data;
             
             localStorage.setItem('token', access);
             localStorage.setItem('refreshToken', refresh);
             
             // Obter dados do usuário
-            const userResponse = await api.get('/users/me/');
+            const userResponse = await api.get('/api/users/users/me/');
             const user = userResponse.data;
             
             return { token: access, user };
@@ -21,7 +21,7 @@ export const authService = {
 
     async getProfile() {
         try {
-            const response = await api.get('/users/me/');
+            const response = await api.get('/api/users/users/me/');
             return response.data;
         } catch (error) {
             throw error;
@@ -30,7 +30,7 @@ export const authService = {
 
     async updateProfile(userData) {
         try {
-            const response = await api.put('/users/me/', userData);
+            const response = await api.put('/api/users/users/me/', userData);
             return response.data;
         } catch (error) {
             throw error;
@@ -39,7 +39,7 @@ export const authService = {
 
     async changePassword(passwordData) {
         try {
-            const response = await api.post('/users/change-password/', passwordData);
+            const response = await api.post('/api/users/users/change-password/', passwordData);
             return response.data;
         } catch (error) {
             throw error;
@@ -63,7 +63,7 @@ export const authService = {
     async refreshToken() {
         try {
             const refreshToken = localStorage.getItem('refreshToken');
-            const response = await api.post('/token/refresh/', { refresh: refreshToken });
+            const response = await api.post('/api/auth/token/refresh/', { refresh: refreshToken });
             const { access } = response.data;
             localStorage.setItem('token', access);
             return access;

@@ -54,7 +54,7 @@ const calculationService = {
             }
             
             // Construir URL com query string
-            const url = queryParams.toString() ? `/calculations/?${queryParams.toString()}` : '/calculations/';
+            const url = queryParams.toString() ? `/api/calculations/?${queryParams.toString()}` : '/api/calculations/';
             
             console.log('Buscando cálculos com URL:', url);
             const response = await api.get(url);
@@ -69,7 +69,7 @@ const calculationService = {
     // Obter um cálculo específico
     async getCalculation(id) {
         try {
-            const response = await api.get(`/calculations/${id}/`);
+            const response = await api.get(`/api/calculations/${id}/`);
             return response.data;
         } catch (error) {
             console.error(`Erro ao buscar cálculo ${id}:`, error);
@@ -80,7 +80,7 @@ const calculationService = {
     // Criar um novo cálculo
     async createCalculation(calculationData) {
         try {
-            const response = await api.post('/calculations/', calculationData);
+            const response = await api.post('/api/calculations/', calculationData);
             return response.data;
         } catch (error) {
             console.error('Erro ao criar cálculo:', error);
@@ -91,7 +91,7 @@ const calculationService = {
     // Atualizar um cálculo existente
     async updateCalculation(id, calculationData) {
         try {
-            const response = await api.patch(`/calculations/${id}/`, calculationData);
+            const response = await api.patch(`/api/calculations/${id}/`, calculationData);
             return response.data;
         } catch (error) {
             console.error(`Erro ao atualizar cálculo ${id}:`, error);
@@ -102,7 +102,7 @@ const calculationService = {
     // Excluir um cálculo
     async deleteCalculation(id) {
         try {
-            await api.delete(`/calculations/${id}/`);
+            await api.delete(`/api/calculations/${id}/`);
             return true;
         } catch (error) {
             console.error(`Erro ao excluir cálculo ${id}:`, error);
@@ -113,7 +113,7 @@ const calculationService = {
     // Gerar relatório de cálculo
     async generateReport(id, reportType = 'pdf') {
         try {
-            const response = await api.get(`/calculations/${id}/report/?format=${reportType}`, {
+            const response = await api.get(`/api/calculations/${id}/report/?format=${reportType}`, {
                 responseType: 'blob'
             });
             return response.data;

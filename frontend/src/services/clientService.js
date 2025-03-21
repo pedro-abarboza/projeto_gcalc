@@ -49,7 +49,7 @@ const clientService = {
             }
             
             // Construir URL com query string
-            const url = queryParams.toString() ? `/services/clients/?${queryParams.toString()}` : '/services/clients/';
+            const url = queryParams.toString() ? `/api/clients/?${queryParams.toString()}` : '/api/clients/';
             
             console.log('Buscando clientes com URL:', url);
             const response = await api.get(url);
@@ -68,7 +68,7 @@ const clientService = {
      */
     async getClient(id) {
         try {
-            const response = await api.get(`/services/clients/${id}/`);
+            const response = await api.get(`/api/clients/${id}/`);
             return response.data;
         } catch (error) {
             console.error(`Erro ao buscar cliente ${id}:`, error);
@@ -83,7 +83,7 @@ const clientService = {
      */
     async createClient(clientData) {
         try {
-            const response = await api.post('/services/clients/', clientData);
+            const response = await api.post('/api/clients/', clientData);
             return response.data;
         } catch (error) {
             console.error('Erro ao criar cliente:', error);
@@ -99,7 +99,7 @@ const clientService = {
      */
     async updateClient(id, clientData) {
         try {
-            const response = await api.patch(`/services/clients/${id}/`, clientData);
+            const response = await api.patch(`/api/clients/${id}/`, clientData);
             return response.data;
         } catch (error) {
             console.error(`Erro ao atualizar cliente ${id}:`, error);
@@ -114,7 +114,7 @@ const clientService = {
      */
     async deleteClient(id) {
         try {
-            await api.delete(`/services/clients/${id}/`);
+            await api.delete(`/api/clients/${id}/`);
             return true;
         } catch (error) {
             console.error(`Erro ao excluir cliente ${id}:`, error);
@@ -129,7 +129,7 @@ const clientService = {
      */
     async toggleStatus(id) {
         try {
-            const response = await api.patch(`/services/clients/${id}/toggle_status/`);
+            const response = await api.patch(`/api/clients/${id}/toggle-status/`);
             return response.data;
         } catch (error) {
             console.error(`Erro ao alternar status do cliente ${id}:`, error);

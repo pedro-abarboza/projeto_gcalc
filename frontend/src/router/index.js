@@ -24,6 +24,17 @@ const routes = [
                 meta: { requiresAuth: true }
             },
             {
+                path: '/admin/funcoes',
+                name: 'Funcoes',
+                component: () => import('@/views/pages/Funcoes.vue'),
+                meta: {
+                    breadcrumb: [{ label: 'Home', to: '/' }, { label: 'Administração' }, { label: 'Funções' }],
+                    pageTitle: 'Gerenciamento de Funções',
+                    requiresAuth: true,
+                    permissions: ['auth.view_group', 'auth.add_group', 'auth.change_group', 'auth.delete_group']
+                }
+            },
+            {
                 path: '/servicos',
                 name: 'servicos',
                 component: () => import('@/views/pages/Servicos.vue')
@@ -32,6 +43,12 @@ const routes = [
                 path: '/clientes',
                 name: 'clientes',
                 component: () => import('@/views/pages/Clientes.vue'),
+                meta: { requiresAuth: true }
+            },
+            {
+                path: '/funcoes',
+                name: 'funcoes',
+                component: () => import('@/views/pages/Funcoes.vue'),
                 meta: { requiresAuth: true }
             },
             {

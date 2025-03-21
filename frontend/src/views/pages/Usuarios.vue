@@ -35,8 +35,8 @@
             email: '',
             first_name: '',
             last_name: '',
-            role: 'analyst',
-            status: true,
+            group_ids: [],
+            is_active: true,
             password: '',
             password2: ''
         };
@@ -133,10 +133,10 @@
         }
     };
 
-    const editUser = (editUser) => {
-        console.log('Editando usuário:', editUser);
+    const editUser = (data) => {
+        console.log('Editando usuário:', data);
         // Criar uma cópia profunda do objeto para evitar referências
-        user.value = JSON.parse(JSON.stringify(editUser));
+        user.value = JSON.parse(JSON.stringify(data));
         
         // Garantir que todos os campos necessários estejam presentes
         user.value = {
@@ -149,8 +149,8 @@
         userDialog.value = true;
     };
 
-    const confirmDeleteUser = (editUser) => {
-        user.value = editUser;
+    const confirmDeleteUser = (data) => {
+        user.value = data;
         deleteUserDialog.value = true;
     };
 
@@ -193,8 +193,8 @@
         email: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
         first_name: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
         last_name: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-        role: { value: null, matchMode: FilterMatchMode.EQUALS },
-        status: { value: null, matchMode: FilterMatchMode.EQUALS }
+        groups: { value: null, matchMode: FilterMatchMode.EQUALS },
+        is_active: { value: null, matchMode: FilterMatchMode.EQUALS }
     });
 
     // Função para carregar todos os usuários de uma vez
@@ -209,38 +209,57 @@
         }
     };
 
-    const getRoleLabel = (role) => {
-        switch (role) {
-            case 'admin': return 'Administrador';
-            case 'analyst': return 'Analista';
-            case 'reviewer': return 'Revisor';
-            default: return role;
-        }
+    const getGroupsLabel = (groups) => {
+        if (!groups || !groups.length) return 'Sem função';
+        return groups.map(group => group.name).join(', ');
     };
 
-    const getStatusSeverity = (status) => {
-        return status ? 'success' : 'danger';
+    const getStatusSeverity = (isActive) => {
+        return isActive ? 'success' : 'danger';
     };
 
-    const getStatusLabel = (status) => {
-        return status ? 'Ativo' : 'Inativo';
+    const getStatusLabel = (isActive) => {
+        return isActive ? 'Ativo' : 'Inativo';
     };
 
     const toggleUserStatus = async (user) => {
         try {
             await userStore.toggleStatus(user.id);
-            toast.add({ severity: 'success', summary: 'Sucesso', detail: `Usuário ${getStatusLabel(!user.status)}`, life: 3000 });
+            toast.add({ severity: 'success', summary: 'Sucesso', detail: `Usuário ${getStatusLabel(!user.is_active)}`, life: 3000 });
             await loadUsers(); // Recarregar a lista após alterar status
         } catch (error) {
             toast.add({ severity: 'error', summary: 'Erro', detail: error.response?.data?.detail || 'Erro ao alterar status do usuário', life: 3000 });
         }
     };
 
+    // Menu de contexto
+    const menuRefs = ref({});
+    const get_menuRefs = (event, id) => {
+        return menuRefs.value[id] = event;
+    };
+    const getMenuItems = (data) => [
+        {
+            label: 'Editar',
+            icon: 'pi pi-pencil p-button-text p-button-success',
+            command: () => editUser(data)
+        },
+        {
+            label: 'Excluir',
+            icon: 'pi pi-trash p-button-text p-button-danger',
+            command: () => confirmDeleteUser(data)
+        }
+    ];
+
+    const toggle = (event, data) => {
+        menuRefs.value[data.id].toggle(event);
+    };
+
+    // Carregar usuários ao montar o componente
     onMounted(async () => {
         try {
             await loadUsers();
         } catch (error) {
-            toast.add({ severity: 'error', summary: 'Erro', detail: error.response?.data?.detail || 'Erro ao carregar usuários', life: 3000 });
+            toast.add({ severity: 'error', summary: 'Erro', detail: error, life: 3000 });
         }
     });
 
@@ -273,7 +292,8 @@
             currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} usuários"
             :loading="loading"
             :filters="filters"
-            :globalFilterFields="['username', 'email', 'first_name', 'last_name', 'role']"
+            :rowHover="true"
+            :globalFilterFields="['username', 'email', 'first_name', 'last_name', 'groups']"
             :exportFilename="'usuarios'"
             responsiveLayout="scroll"
         >
@@ -312,28 +332,16 @@
             <Column field="email" header="E-mail" :sortable="true" headerStyle="width: 20%"></Column>
             <Column field="first_name" header="Nome" :sortable="true" headerStyle="width: 15%"></Column>
             <Column field="last_name" header="Sobrenome" :sortable="true" headerStyle="width: 15%"></Column>
-            <Column field="role" header="Função" :sortable="true" headerStyle="width: 15%">
+            <Column field="groups" header="Funções" :sortable="false" headerStyle="width: 15%">
                 <template #body="slotProps">
-                    {{ getRoleLabel(slotProps.data.role) }}
-                </template>
-                <template #filter="{ filterModel, filterCallback }">
-                    <Dropdown 
-                        v-model="filterModel.value" 
-                        :options="[{label: 'Todos', value: null}, {label: 'Administrador', value: 'admin'}, {label: 'Analista', value: 'analyst'}, {label: 'Revisor', value: 'reviewer'}]" 
-                        optionLabel="label" 
-                        optionValue="value" 
-                        placeholder="Selecione" 
-                        class="p-column-filter" 
-                        :showClear="true"
-                        @change="filterCallback()"
-                    />
+                    {{ getGroupsLabel(slotProps.data.groups) }}
                 </template>
             </Column>
-            <Column field="status" header="Status" :sortable="true" headerStyle="width: 10%">
+            <Column field="is_active" header="Status" :sortable="true" headerStyle="width: 10%">
                 <template #body="slotProps">
                     <Tag 
-                        :value="getStatusLabel(slotProps.data.status)" 
-                        :severity="getStatusSeverity(slotProps.data.status)" 
+                        :value="getStatusLabel(slotProps.data.is_active)" 
+                        :severity="getStatusSeverity(slotProps.data.is_active)" 
                         class="cursor-pointer"
                         @click="toggleUserStatus(slotProps.data)"
                     />
@@ -353,13 +361,16 @@
             </Column>
             <Column headerStyle="min-width:10rem;">
                 <template #body="slotProps">
-                    <Button icon="pi pi-pencil" class="p-button-rounded p-button-success mr-2" @click="editUser(slotProps.data)" :disabled="loading" />
-                    <Button icon="pi pi-trash" class="p-button-rounded p-button-danger" @click="confirmDeleteUser(slotProps.data)" :disabled="loading" />
+                    <Button icon="p-button-rounded pi pi-ellipsis-v" @click="(e) => toggle(e, slotProps.data)" aria-haspopup="true" aria-controls="overlay_menu" size="small" rounded raised />
+                    <Menu :ref="(e) => get_menuRefs(e, slotProps.data.id)" id="overlay_menu" :model="getMenuItems(slotProps.data)" :popup="true" />
                 </template>
+            </Column>
+            <Column>
+                
             </Column>
         </DataTable>
 
-        <Dialog v-model:visible="userDialog" :style="{ width: '450px' }" header="Detalhes do Usuário" :modal="true" class="p-fluid">
+        <Dialog v-model:visible="userDialog" :style="{ width: '450px' }" header="Dados do Usuário" :modal="true" class="p-fluid">
             <UserForm 
                 v-model:user="user"
                 :submitted="submitted"
@@ -392,38 +403,3 @@
         </Dialog>
     </div>
 </template>
-
-<style scoped>
-.card {
-    background: var(--surface-card);
-    padding: 2rem;
-    border-radius: 10px;
-    margin-bottom: 1rem;
-}
-
-.field {
-    margin-bottom: 1.5rem;
-}
-
-label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-}
-
-.p-button {
-    margin-right: 0.5rem;
-}
-
-.p-dialog .p-dialog-content {
-    padding: 2rem;
-}
-
-.p-dialog .p-dialog-footer {
-    padding: 1.5rem;
-}
-
-.cursor-pointer {
-    cursor: pointer;
-}
-</style> 

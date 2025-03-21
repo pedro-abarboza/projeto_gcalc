@@ -117,7 +117,8 @@
     };
     
     const filters = ref({
-        'global': { value: null, matchMode: FilterMatchMode.CONTAINS }
+        'global': { value: null, matchMode: FilterMatchMode.CONTAINS },
+        'status': { value: null, matchMode: FilterMatchMode.EQUALS }
     });
 
     const formatDate = (value) => {
@@ -127,6 +128,35 @@
             month: '2-digit',
             year: 'numeric'
         });
+    };
+
+    const getStatusSeverity = (isActive) => {
+        return isActive ? 'success' : 'danger';
+    };
+
+    const getStatusLabel = (isActive) => {
+        return isActive ? 'Ativo' : 'Inativo';
+    };
+
+    const toggleClientStatus = async (client) => {
+        try {
+            // Invertendo o status atual
+            const newStatus = !client.status;
+            await clientStore.updateClient(client.id, { ...client, status: newStatus });
+            toast.add({ 
+                severity: 'success', 
+                summary: 'Sucesso', 
+                detail: `Cliente ${getStatusLabel(newStatus)}`, 
+                life: 3000 
+            });
+        } catch (error) {
+            toast.add({ 
+                severity: 'error', 
+                summary: 'Erro', 
+                detail: error.response?.data?.detail || 'Erro ao alterar status do cliente', 
+                life: 3000 
+            });
+        }
     };
 
     const editClient = (editClient) => {
@@ -181,6 +211,29 @@
         }
     };
 
+    // Menu de contexto
+    const menuRefs = ref({});
+    const get_menuRefs = (event, id) => {
+        return menuRefs.value[id] = event;
+    };
+    const getMenuItems = (data) => [
+                {
+                    label: 'Editar',
+                    icon: 'pi pi-pencil p-button-text p-button-success',
+                    command: () => editClient(data)
+                },
+                {
+                    label: 'Excluir',
+                    icon: 'pi pi-trash p-button-text p-button-danger',
+                    command: () => confirmDeleteClient(data)
+                }
+            ];
+
+    const toggle = (event, data) => {
+        menuRefs.value[data.id].toggle(event);
+    };
+
+    // Carregar clientes ao montar o componente
     onMounted(async () => {
         try {
             await clientStore.fetchClients();
@@ -246,18 +299,34 @@
                     <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
                     <Column field="id" header="ID" :sortable="true" headerStyle="width: 3rem; min-width: 3rem"></Column>
                     <Column field="name" header="Nome" :sortable="true" headerStyle="min-width: 14rem"></Column>
-                    <Column field="email" header="Email" :sortable="true" headerStyle="min-width: 14rem"></Column>
                     <Column field="phone" header="Telefone" :sortable="true" headerStyle="min-width: 10rem"></Column>
-                    <Column field="document" header="CPF/CNPJ" :sortable="true" headerStyle="min-width: 10rem"></Column>
-                    <Column field="registrationDate" header="Data de Cadastro" :sortable="true" headerStyle="min-width: 10rem">
+                    <Column field="email" header="Email" :sortable="true" headerStyle="min-width: 14rem"></Column>
+                    <Column field="status" header="Status" :sortable="true" headerStyle="min-width: 10rem">
                         <template #body="slotProps">
-                            {{ formatDate(slotProps.data.registrationDate) }}
+                            <Tag 
+                                :value="getStatusLabel(slotProps.data.status)" 
+                                :severity="getStatusSeverity(slotProps.data.status)" 
+                                class="cursor-pointer"
+                                @click="toggleClientStatus(slotProps.data)"
+                            />
+                        </template>
+                        <template #filter="{ filterModel, filterCallback }">
+                            <Dropdown 
+                                v-model="filterModel.value" 
+                                :options="[{label: 'Todos', value: null}, {label: 'Ativo', value: true}, {label: 'Inativo', value: false}]" 
+                                optionLabel="label" 
+                                optionValue="value" 
+                                placeholder="Selecione" 
+                                class="p-column-filter" 
+                                :showClear="true"
+                                @change="filterCallback()"
+                            />
                         </template>
                     </Column>
                     <Column headerStyle="min-width: 10rem">
                         <template #body="slotProps">
-                            <Button icon="pi pi-pencil" class="p-button-rounded p-button-success mr-2" @click="editClient(slotProps.data)" :disabled="loading" />
-                            <Button icon="pi pi-trash" class="p-button-rounded p-button-danger mt-2" @click="confirmDeleteClient(slotProps.data)" :disabled="loading" />
+                            <Button icon="p-button-rounded pi pi-ellipsis-v" @click="(e) => toggle(e, slotProps.data)" aria-haspopup="true" aria-controls="overlay_menu" size="small" rounded raised />
+                                <Menu :ref="(e) => get_menuRefs(e, slotProps.data.id)" id="overlay_menu" :model="getMenuItems(slotProps.data)" :popup="true" />
                         </template>
                     </Column>
                 </DataTable>

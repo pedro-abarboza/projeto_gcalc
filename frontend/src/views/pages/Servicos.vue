@@ -2,10 +2,12 @@
     import { ref, onMounted, computed } from 'vue';
     import { useToast } from 'primevue/usetoast';
     import { FilterMatchMode } from '@primevue/core/api';
+    import { useClientStore } from '@/stores/client';
     import ServiceForm from '@/components/forms/ServiceForm.vue';
     import { useServiceStore } from '@/stores/service';
 
     const serviceStore = useServiceStore();
+    const clientStore = useClientStore();
     const dt = ref(null);
     
     // Computed properties
@@ -13,6 +15,7 @@
         // Garantir que services seja sempre um array
         return Array.isArray(serviceStore.getServices) ? serviceStore.getServices : [];
     });
+    const clients = computed(() => clientStore.clients);
     const loading = computed(() => serviceStore.isLoading);
     const error = computed(() => serviceStore.getError);
     
@@ -75,10 +78,10 @@
         serviceDialog.value = true;
     };
 
-    const editService = (editService) => {
-        console.log('Editando serviço:', editService);
+    const editService = (data) => {
+        console.log('Editando serviço:', data);
         // Criar uma cópia profunda do objeto para evitar referências
-        service.value = JSON.parse(JSON.stringify(editService));
+        service.value = JSON.parse(JSON.stringify(data));
         serviceDialog.value = true;
     };
 
@@ -131,8 +134,9 @@
         submitted.value = true;
         
         // Validar campos obrigatórios
-        if (!data.title || !data.client_id || !data.service_type_id || 
+        if (!data.title || !data.client || !data.service_type || 
             !data.calculation_type || !data.description || !data.status) {
+                toast.add({ severity: 'error', summary: 'Erro', detail: 'Preencha todos os campos obrigatórios', life: 3000 });
             return;
         }
         
@@ -202,10 +206,38 @@
         dt.value?.exportCSV();
     };
 
+    const getClientName = (clientId) => {
+        const client = clients.value.find(c => c.id === clientId);
+        return client ? client.name : '';
+    };
+
     const hideDialog = () => {
         serviceDialog.value = false;
-        service.value = {};
         submitted.value = false;
+    };
+
+    // Menu de contexto
+    const menuRefs = ref({});
+
+    const get_menuRefs = (event, id) => {
+        return menuRefs.value[id] = event;
+    };
+
+    const getMenuItems = (data) => [
+                {
+                    label: 'Editar',
+                    icon: 'pi pi-pencil p-button-text p-button-success',
+                    command: () => editService(data)
+                },
+                {
+                    label: 'Excluir',
+                    icon: 'pi pi-trash p-button-text p-button-danger',
+                    command: () => confirmDeleteService(data)
+                }
+            ];
+
+    const toggle = (event, data) => {
+        menuRefs.value[data.id].toggle(event);
     };
 
     onMounted(async () => {
@@ -283,54 +315,35 @@
                         </div>
                     </template>
 
-                    <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
-                    
-                    <Column field="id" header="ID" :sortable="true" headerStyle="width:14%; min-width:10rem;">
+                    <Column selectionMode="multiple"></Column>
+                    <Column field="title" header="Título" :sortable="true"></Column>
+                    <Column field="client" header="Cliente" :sortable="true">
                         <template #body="slotProps">
-                            <span class="p-column-title">ID</span>
-                            {{ slotProps.data.id }}
+                            {{ getClientName(slotProps.data.client) }}
                         </template>
                     </Column>
-
-                    <Column field="client" header="Cliente" :sortable="true" headerStyle="width:14%; min-width:10rem;">
+                    <Column field="service_type_name" header="Tipo" :sortable="true"></Column>
+                    <Column field="deadline" header="Prazo" :sortable="true">
                         <template #body="slotProps">
-                            <span class="p-column-title">Cliente</span>
-                            {{ slotProps.data.client?.name }}
-                        </template>
-                    </Column>
-
-                    <Column field="calculation_type" header="Tipo" :sortable="true" headerStyle="width:14%; min-width:10rem;">
-                        <template #body="slotProps">
-                            <span class="p-column-title">Tipo</span>
-                            {{ getCalculationTypeLabel(slotProps.data.calculation_type) }}
-                        </template>
-                    </Column>
-
-                    <Column field="status" header="Status" :sortable="true" headerStyle="width:14%; min-width:10rem;">
-                        <template #body="slotProps">
-                            <span class="p-column-title">Status</span>
-                            <Tag :value="getStatusLabel(slotProps.data.status)" :severity="getStatusSeverity(slotProps.data.status)" />
-                        </template>
-                    </Column>
-
-                    <Column field="deadline" header="Prazo" :sortable="true" headerStyle="width:14%; min-width:10rem;">
-                        <template #body="slotProps">
-                            <span class="p-column-title">Prazo</span>
                             {{ formatDate(slotProps.data.deadline) }}
                         </template>
                     </Column>
-
-                    <Column headerStyle="min-width:10rem;">
+                    <Column field="status" header="Status" :sortable="true">
                         <template #body="slotProps">
-                            <Button icon="pi pi-pencil" class="p-button-rounded p-button-success mr-2" @click="editService(slotProps.data)" :disabled="loading" />
-                            <Button icon="pi pi-trash" class="p-button-rounded p-button-danger mt-2" @click="confirmDeleteService(slotProps.data)" :disabled="loading" />
+                            <Tag :value="getStatusLabel(slotProps.data.status)" :severity="getStatusSeverity(slotProps.data.status)" />
+                        </template>
+                    </Column>
+                    <Column>
+                        <template #body="slotProps">
+                            <Button icon="p-button-rounded pi pi-ellipsis-v" @click="(e) => toggle(e, slotProps.data)" aria-haspopup="true" aria-controls="overlay_menu" size="small" rounded raised />
+                            <Menu :ref="(e) => get_menuRefs(e, slotProps.data.id)" id="overlay_menu" :model="getMenuItems(slotProps.data)" :popup="true" />
                         </template>
                     </Column>
                 </DataTable>
 
                 <ServiceForm
                     v-model:visible="serviceDialog"
-                    v-model:service="service"
+                    :service="service"
                     :submitted="submitted"
                     :loading="loading"
                     @save="saveService"

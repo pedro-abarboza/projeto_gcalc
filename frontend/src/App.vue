@@ -37,4 +37,37 @@ onMounted(() => {
     <router-view></router-view>
 </template>
 
-<style scoped></style>
+<style scoped>
+    .card {
+        background: var(--surface-card);
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+    }
+
+    .field {
+        margin-bottom: 1.5rem;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+    .p-button {
+        margin-right: 0.5rem;
+    }
+
+    .p-dialog .p-dialog-content {
+        padding: 2rem;
+    }
+
+    .p-dialog .p-dialog-footer {
+        padding: 1.5rem;
+    }
+
+    .cursor-pointer {
+        cursor: pointer;
+    }
+</style>

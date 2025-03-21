@@ -6,13 +6,12 @@ from rest_framework.decorators import action
 from django_filters import rest_framework as filters
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.pagination import PageNumberPagination
-from .models import Service, Client, ServiceTypeClient
+from .models import Service, ServiceTypeClient
 from .serializers import (
     ServiceSerializer, ServiceListSerializer,
-    ClientSerializer, ClientListSerializer,
     ServiceTypeClientSerializer, ServiceTypeClientListSerializer
 )
-from .filters import ServiceFilter, ClientFilter
+from .filters import ServiceFilter
 
 # Create your views here.
 
@@ -20,33 +19,6 @@ class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
-
-class ClientViewSet(viewsets.ModelViewSet):
-    queryset = Client.objects.all()
-    permission_classes = [IsAuthenticated]
-    filterset_class = ClientFilter
-    filter_backends = (filters.DjangoFilterBackend, SearchFilter, OrderingFilter)
-    search_fields = ['name', 'document_number', 'email', 'phone']
-    ordering_fields = ['name', 'document_type', 'document_number', 'created_at', 'status']
-    ordering = ['name']
-    pagination_class = StandardResultsSetPagination
-    serializer_class = ClientSerializer
-    
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return ClientListSerializer
-        return ClientSerializer
-    
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
-    
-    @action(detail=True, methods=['patch'])
-    def toggle_status(self, request, pk=None):
-        client = self.get_object()
-        client.status = not client.status
-        client.save()
-        serializer = ClientListSerializer(client)
-        return Response(serializer.data)
 
 class ServiceTypeClientViewSet(viewsets.ModelViewSet):
     """
@@ -141,29 +113,6 @@ class ServiceViewSet(viewsets.ModelViewSet):
         
         service.reviewer_id = user_id
         service.status = 'review'
-        service.save()
-        
-        serializer = self.get_serializer(service)
-        return Response(serializer.data)
-    
-    @action(detail=True, methods=['post'])
-    def change_status(self, request, pk=None):
-        service = self.get_object()
-        new_status = request.data.get('status')
-        
-        if not new_status:
-            return Response(
-                {'error': 'É necessário informar o novo status'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        if new_status not in dict(Service.STATUS_CHOICES):
-            return Response(
-                {'error': 'Status inválido'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        service.status = new_status
         service.save()
         
         serializer = self.get_serializer(service)

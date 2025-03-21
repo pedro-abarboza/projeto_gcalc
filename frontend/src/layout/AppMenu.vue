@@ -9,9 +9,15 @@ const model = ref([
         items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/' }]
     },
     {
-        label: 'Gestão',
+        label: 'Acessos',
         items: [
             { label: 'Usuários', icon: 'pi pi-fw pi-users', to: '/usuarios' },
+            { label: 'Funções', icon: 'pi pi-fw pi-key', to: '/funcoes' },
+        ]
+    },
+    {
+        label: 'Gestão',
+        items: [
             { label: 'Clientes', icon: 'pi pi-fw pi-building', to: '/clientes' },
             { label: 'Serviços', icon: 'pi pi-fw pi-briefcase', to: '/servicos' },
             { label: 'Tipos de Serviço', icon: 'pi pi-fw pi-list', to: '/tipos-servico' }
@@ -149,6 +155,13 @@ const model = ref([
                 url: 'https://github.com/primefaces/sakai-vue',
                 target: '_blank'
             }
+        ]
+    },
+    {
+        label: 'Administração',
+        items: [
+            { label: 'Usuários', icon: 'pi pi-users', to: '/admin/usuarios' },
+            { label: 'Funções', icon: 'pi pi-key', to: '/admin/funcoes' },
         ]
     }
 ]);

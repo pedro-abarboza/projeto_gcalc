@@ -72,7 +72,7 @@ Implemente as seguintes entidades com seus respectivos atributos:
    - title (string, obrigatório)
    - description (string, obrigatório)
    - client_id (integer, obrigatório, referência a Cliente)
-   - service_type_id (integer, obrigatório, referência a TipoServico)
+   - service_type (integer, obrigatório, referência a TipoServico)
    - calculation_type (string, obrigatório)
    - status (string, obrigatório)
    - deadline (date)

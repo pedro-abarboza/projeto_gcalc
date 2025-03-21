@@ -1,160 +1,10 @@
-<template>
-    <Dialog
-        :visible="visible"
-        @update:visible="emit('update:visible', $event)"
-        :style="{ width: '600px' }"
-        :header="service.id ? 'Editar Serviço' : 'Novo Serviço'"
-        :modal="true"
-        class="p-fluid"
-        :closable="false"
-    >
-        <div class="grid">
-            <div class="col-12 md:col-6">
-                <div class="field">
-                    <label for="title" class="font-bold">Título *</label>
-                    <InputText
-                        id="title"
-                        :modelValue="service.title || ''"
-                        @update:modelValue="value => updateService('title', value?.trim())"
-                        :class="{ 'p-invalid': submitted && !service.title }"
-                        :disabled="loading"
-                    />
-                    <small v-if="submitted && !service.title" class="p-error">Título é obrigatório.</small>
-                </div>
-            </div>
-
-            <div class="col-12 md:col-6">
-                <div class="field">
-                    <label for="client" class="font-bold">Cliente *</label>
-                    <Dropdown
-                        id="client"
-                        :modelValue="service.client_id"
-                        @update:modelValue="value => updateService('client_id', value)"
-                        :options="clients"
-                        optionLabel="name"
-                        optionValue="id"
-                        placeholder="Selecione um cliente"
-                        :class="{ 'p-invalid': submitted && !service.client_id }"
-                        :disabled="loading"
-                    />
-                    <small v-if="submitted && !service.client_id" class="p-error">Cliente é obrigatório.</small>
-                </div>
-            </div>
-
-            <div class="col-12 md:col-6">
-                <div class="field">
-                    <label for="service_type" class="font-bold">Tipo de Serviço *</label>
-                    <Dropdown
-                        id="service_type"
-                        :modelValue="service.service_type_id"
-                        @update:modelValue="value => updateService('service_type_id', value)"
-                        :options="serviceTypes"
-                        optionLabel="name"
-                        optionValue="id"
-                        placeholder="Selecione um tipo de serviço"
-                        :class="{ 'p-invalid': submitted && !service.service_type_id }"
-                        :disabled="loading"
-                    />
-                    <small v-if="submitted && !service.service_type_id" class="p-error">Tipo de serviço é obrigatório.</small>
-                </div>
-            </div>
-
-            <div class="col-12 md:col-6">
-                <div class="field">
-                    <label for="calculation_type" class="font-bold">Tipo de Cálculo *</label>
-                    <Dropdown
-                        id="calculation_type"
-                        :modelValue="service.calculation_type"
-                        @update:modelValue="value => updateService('calculation_type', value)"
-                        :options="calculationTypes"
-                        optionLabel="name"
-                        optionValue="value"
-                        placeholder="Selecione um tipo de cálculo"
-                        :class="{ 'p-invalid': submitted && !service.calculation_type }"
-                        :disabled="loading"
-                    />
-                    <small v-if="submitted && !service.calculation_type" class="p-error">Tipo de cálculo é obrigatório.</small>
-                </div>
-            </div>
-
-            <div class="col-12">
-                <div class="field">
-                    <label for="description" class="font-bold">Descrição *</label>
-                    <Textarea
-                        id="description"
-                        :modelValue="service.description || ''"
-                        @update:modelValue="value => updateService('description', value)"
-                        rows="3"
-                        :class="{ 'p-invalid': submitted && !service.description }"
-                        :disabled="loading"
-                    />
-                    <small v-if="submitted && !service.description" class="p-error">Descrição é obrigatória.</small>
-                </div>
-            </div>
-
-            <div class="col-12 md:col-6">
-                <div class="field">
-                    <label for="deadline" class="font-bold">Prazo</label>
-                    <Calendar
-                        id="deadline"
-                        :modelValue="service.deadline"
-                        @update:modelValue="value => updateService('deadline', value)"
-                        dateFormat="yy-mm-dd"
-                        placeholder="AAAA-MM-DD"
-                        :disabled="loading"
-                    />
-                </div>
-            </div>
-
-            <div class="col-12 md:col-6">
-                <div class="field">
-                    <label for="status" class="font-bold">Status *</label>
-                    <Dropdown
-                        id="status"
-                        :modelValue="service.status"
-                        @update:modelValue="value => updateService('status', value)"
-                        :options="statusOptions"
-                        optionLabel="name"
-                        optionValue="value"
-                        placeholder="Selecione um status"
-                        :class="{ 'p-invalid': submitted && !service.status }"
-                        :disabled="loading"
-                    />
-                    <small v-if="submitted && !service.status" class="p-error">Status é obrigatório.</small>
-                </div>
-            </div>
-
-            <div class="col-12">
-                <div class="field">
-                    <label for="notes">Observações</label>
-                    <Textarea
-                        id="notes"
-                        :modelValue="service.notes || ''"
-                        @update:modelValue="value => updateService('notes', value)"
-                        rows="3"
-                        :disabled="loading"
-                    />
-                </div>
-            </div>
-        </div>
-
-        <template #footer>
-            <Button label="Cancelar" icon="pi pi-times" class="p-button-text" @click="cancelEdit" :disabled="loading" />
-            <Button label="Salvar" icon="pi pi-check" class="p-button-text" @click="saveService" :loading="loading" />
-        </template>
-    </Dialog>
-</template>
-
 <script setup>
-    import { ref, computed, watch } from 'vue';
+    import { ref, computed, watch, onMounted } from 'vue';
     import { useClientStore } from '@/stores/client';
     import { useUserStore } from '@/stores/user';
     import { useTipoServicoClienteStore } from '@/stores/tipoServicoCliente';
 
-    const clientStore = useClientStore();
-    const userStore = useUserStore();
-    const tipoServicoClienteStore = useTipoServicoClienteStore();
-
+    // Props
     const props = defineProps({
         visible: {
             type: Boolean,
@@ -167,8 +17,8 @@
                 id: null,
                 title: '',
                 description: '',
-                client_id: null,
-                service_type_id: null,
+                client: null,
+                service_type: null,
                 calculation_type: '',
                 status: 'pending',
                 deadline: null,
@@ -185,13 +35,43 @@
         }
     });
 
-    const emit = defineEmits(['update:visible', 'update:service', 'save', 'cancel']);
+    // Emits
+    const emit = defineEmits(['update:visible', 'save', 'hide']);
 
+    // Stores
+    const clientStore = useClientStore();
+    const userStore = useUserStore();
+    const tipoServicoClienteStore = useTipoServicoClienteStore();
+
+    // Estado - Dados do formulário
+    const serviceData = ref({
+        id: null,
+        title: '',
+        description: '',
+        client: null,
+        service_type: null,
+        calculation_type: '',
+        status: 'pending',
+        deadline: null,
+        notes: ''
+    });
+    
+    // Estado - Dados carregados
     const clients = ref([]);
     const serviceTypes = ref([]);
+
+    // Computed properties - Estados de carregamento
     const clientsLoading = computed(() => clientStore.isLoading);
     const serviceTypesLoading = computed(() => tipoServicoClienteStore.isLoading);
+    
+    // Computed property - Controle de visibilidade do diálogo
+    const dialogVisible = computed({
+        get: () => props.visible,
+        set: (value) => emit('update:visible', value)
+    });
 
+    // Opções fixas para campos de seleção
+    // Tipos de cálculo disponíveis
     const calculationTypes = ref([
         { name: 'Rescisão', value: 'rescisao' },
         { name: 'Férias', value: 'ferias' },
@@ -201,6 +81,7 @@
         { name: 'Outros', value: 'outros' }
     ]);
 
+    // Opções de status disponíveis
     const statusOptions = ref([
         { name: 'Pendente', value: 'pending' },
         { name: 'Em Andamento', value: 'in_progress' },
@@ -209,48 +90,75 @@
         { name: 'Cancelado', value: 'cancelled' }
     ]);
 
-    // Carregar clientes e tipos de serviço
+    // ===== Lifecycle hooks =====
+    
+    // Carregar dados quando o componente for montado
+    onMounted(async () => {
+        await loadData();
+    });
+
+    // ===== Watchers =====
+    
+    // Observar mudanças na visibilidade do diálogo
     watch(() => props.visible, async (isVisible) => {
         if (isVisible) {
-            try {
-                await clientStore.fetchClients({ page_size: 100 });
-                clients.value = clientStore.getClients;
-                
-                // Carregar tipos de serviço do cliente selecionado
-                if (props.service.client_id) {
-                    await loadServiceTypesForClient(props.service.client_id);
-                } else {
-                    await tipoServicoClienteStore.fetchTiposServico({ page_size: 100 });
-                    serviceTypes.value = tipoServicoClienteStore.getTiposServico;
-                }
-            } catch (error) {
-                console.error('Erro ao carregar dados:', error);
+            // Quando o diálogo é aberto, carrega dados iniciais
+            await loadData();
+            
+            // Carregar tipos de serviço do cliente selecionado
+            if (serviceData.value.client) {
+                await loadServiceTypesForClient(serviceData.value.client);
             }
+        } else {
+            // Quando o diálogo é fechado, resetar o formulário
+            resetForm();
         }
-    }, { immediate: true });
+    });
 
-    // Carregar tipos de serviço quando o cliente mudar
-    watch(() => props.service.client_id, async (clientId) => {
+    // Observar mudanças nas props de serviço
+    watch(() => props.service, (newValue) => {
+        if (newValue && Object.keys(newValue).length > 0) {
+            // Atualizar o estado local com os dados do serviço
+            serviceData.value = { ...newValue };
+        }
+    }, { deep: true, immediate: true });
+
+    // Observar mudanças no cliente selecionado
+    watch(() => serviceData.value.client, async (clientId) => {
         if (clientId) {
+            // Quando o cliente muda, carregar tipos de serviço correspondentes
             await loadServiceTypesForClient(clientId);
         } else {
+            // Se não houver cliente, limpar tipos de serviço
             serviceTypes.value = [];
         }
     });
 
-    // Carregar tipos de serviço quando o diálogo for aberto
-    watch(() => props.visible, async (newValue) => {
-        if (newValue && props.service.client_id) {
-            await loadServiceTypesForClient(props.service.client_id);
+    // ===== Métodos =====
+    
+    // Carregar dados iniciais
+    const loadData = async () => {
+        try {
+            // Carregar clientes se ainda não estiverem carregados
+            if (clients.value.length === 0) {
+                await clientStore.fetchClients({ status: true });
+                clients.value = clientStore.getClients;
+            }
+            
+            // Carregar todos os tipos de serviço (geral)
+            await tipoServicoClienteStore.fetchTiposServico({ page_size: 100 });
+        } catch (error) {
+            console.error('Erro ao carregar dados:', error);
         }
-    });
+    };
 
-    // Função para carregar tipos de serviço por cliente
+    // Carregar tipos de serviço específicos para um cliente
     const loadServiceTypesForClient = async (clientId) => {
         if (!clientId) return;
         
         try {
-            tipoServicoClienteStore.setFilters({ client: clientId, status: true });
+            // Definir filtros e buscar tipos de serviço para o cliente selecionado
+            tipoServicoClienteStore.setFilters({ client_id: clientId, status: true });
             await tipoServicoClienteStore.fetchTiposServico();
             serviceTypes.value = tipoServicoClienteStore.getTiposServico;
         } catch (error) {
@@ -259,19 +167,31 @@
         }
     };
 
-    const updateService = (field, value) => {
-        console.log(`Atualizando campo ${field} para:`, value);
-        const updatedService = { ...props.service, [field]: value };
-        console.log('Serviço atualizado:', updatedService);
-        emit('update:service', updatedService);
+    // Resetar formulário para o estado inicial
+    const resetForm = () => {
+        serviceData.value = {
+            id: null,
+            title: '',
+            description: '',
+            client: null,
+            service_type: null,
+            calculation_type: '',
+            status: 'pending',
+            deadline: null,
+            notes: ''
+        };
     };
 
-    // Função para salvar o serviço
+    // Fechar o diálogo
+    const hideDialog = () => {
+        emit('hide');
+        emit('update:visible', false);
+    };
+
+    // Salvar o serviço
     const saveService = () => {
-        console.log('Salvando serviço:', props.service);
-        
         // Preparar dados para envio
-        const serviceToSave = { ...props.service };
+        const serviceToSave = { ...serviceData.value };
         
         // Formatar a data para o formato esperado pela API (YYYY-MM-DD)
         if (serviceToSave.deadline instanceof Date) {
@@ -281,24 +201,175 @@
             serviceToSave.deadline = `${year}-${month}-${day}`;
         }
         
+        // Emitir evento save com os dados formatados
         emit('save', serviceToSave);
     };
-
-    // Função para cancelar
-    const cancelEdit = () => {
-        console.log('Cancelando edição');
-        emit('cancel');
-        emit('update:visible', false);
-    };
-
-    // Debug para verificar o conteúdo do serviço
-    watch(() => props.service, (newValue) => {
-        console.log('Service data changed:', newValue);
-    }, { deep: true });
 </script>
 
+<template>
+    <Dialog
+        v-model:visible="dialogVisible"
+        :style="{ width: '600px' }"
+        :header="serviceData.id ? 'Editar Serviço' : 'Novo Serviço'"
+        :modal="true"
+        class="p-fluid"
+    >
+        <div class="form-container">
+            <div class="grid">
+                <div class="col-12 md:col-6">
+                    <div class="field">
+                        <label for="title">Título *</label>
+                        <InputText
+                            id="title"
+                            v-model.trim="serviceData.title"
+                            required="true"
+                            autofocus
+                            :class="{ 'p-invalid': submitted && !serviceData.title }"
+                            :disabled="loading"
+                        />
+                        <small v-if="submitted && !serviceData.title" class="p-error">Título é obrigatório.</small>
+                    </div>
+                </div>
+
+                <div class="col-12 md:col-6">
+                    <div class="field">
+                        <label for="client">Cliente *</label>
+                        <Dropdown
+                            id="client"
+                            v-model="serviceData.client"
+                            :options="clients"
+                            optionLabel="name"
+                            optionValue="id"
+                            placeholder="Selecione um cliente"
+                            :class="{ 'p-invalid': submitted && !serviceData.client }"
+                            :disabled="loading"
+                            :loading="clientsLoading"
+                        />
+                        <small v-if="submitted && !serviceData.client" class="p-error">Cliente é obrigatório.</small>
+                    </div>
+                </div>
+
+                <div class="col-12 md:col-6">
+                    <div class="field">
+                        <label for="service_type">Tipo de Serviço *</label>
+                        <Dropdown
+                            id="service_type"
+                            v-model="serviceData.service_type"
+                            :options="serviceTypes"
+                            optionLabel="name"
+                            optionValue="id"
+                            placeholder="Selecione um tipo de serviço"
+                            :class="{ 'p-invalid': submitted && !serviceData.service_type }"
+                            :disabled="loading"
+                            :loading="serviceTypesLoading"
+                        />
+                        <small v-if="submitted && !serviceData.service_type" class="p-error">Tipo de serviço é obrigatório.</small>
+                    </div>
+                </div>
+
+                <div class="col-12 md:col-6">
+                    <div class="field">
+                        <label for="calculation_type">Tipo de Cálculo *</label>
+                        <Dropdown
+                            id="calculation_type"
+                            v-model="serviceData.calculation_type"
+                            :options="calculationTypes"
+                            optionLabel="name"
+                            optionValue="value"
+                            placeholder="Selecione um tipo de cálculo"
+                            :class="{ 'p-invalid': submitted && !serviceData.calculation_type }"
+                            :disabled="loading"
+                        />
+                        <small v-if="submitted && !serviceData.calculation_type" class="p-error">Tipo de cálculo é obrigatório.</small>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="field">
+                        <label for="description">Descrição *</label>
+                        <Textarea
+                            id="description"
+                            v-model="serviceData.description"
+                            rows="3"
+                            :class="{ 'p-invalid': submitted && !serviceData.description }"
+                            :disabled="loading"
+                        />
+                        <small v-if="submitted && !serviceData.description" class="p-error">Descrição é obrigatória.</small>
+                    </div>
+                </div>
+
+                <div class="col-12 md:col-6">
+                    <div class="field">
+                        <label for="deadline">Prazo</label>
+                        <Calendar
+                            id="deadline"
+                            v-model="serviceData.deadline"
+                            dateFormat="yy-mm-dd"
+                            placeholder="AAAA-MM-DD"
+                            :disabled="loading"
+                        />
+                    </div>
+                </div>
+
+                <div class="col-12 md:col-6">
+                    <div class="field">
+                        <label for="status">Status *</label>
+                        <Dropdown
+                            id="status"
+                            v-model="serviceData.status"
+                            :options="statusOptions"
+                            optionLabel="name"
+                            optionValue="value"
+                            placeholder="Selecione um status"
+                            :class="{ 'p-invalid': submitted && !serviceData.status }"
+                            :disabled="loading"
+                        />
+                        <small v-if="submitted && !serviceData.status" class="p-error">Status é obrigatório.</small>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="field">
+                        <label for="notes">Observações</label>
+                        <Textarea
+                            id="notes"
+                            v-model="serviceData.notes"
+                            rows="3"
+                            :disabled="loading"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <template #footer>
+            <div class="actions">
+                <Button label="Cancelar" icon="pi pi-times" class="p-button-text" @click="hideDialog" :disabled="loading" />
+                <Button label="Salvar" icon="pi pi-check" class="p-button-primary" @click="saveService" :loading="loading" />
+            </div>
+        </template>
+    </Dialog>
+</template>
+
 <style scoped>
+.form-container {
+    padding: 1rem;
+}
+
 .field {
     margin-bottom: 1.5rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 2rem;
 }
 </style> 

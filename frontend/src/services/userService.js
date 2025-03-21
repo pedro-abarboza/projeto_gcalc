@@ -26,27 +26,33 @@ const userService = {
             }
             
             // Adicionar filtros específicos
-            const filterFields = ['username', 'email', 'first_name', 'last_name', 'role', 'status'];
+            const filterFields = ['username', 'email', 'first_name', 'last_name', 'groups', 'is_active'];
             filterFields.forEach(field => {
                 if (params[field] !== undefined && params[field] !== null) {
-                    queryParams.append(field, params[field]);
+                    // Tratar arrays (como groups)
+                    if (Array.isArray(params[field])) {
+                        params[field].forEach(value => {
+                            queryParams.append(`${field}`, value);
+                        });
+                    } else {
+                        queryParams.append(field, params[field]);
+                    }
                 }
             });
             
             // Adicionar filtros de data
-            if (params.created_at_after) {
-                queryParams.append('created_at_after', params.created_at_after);
+            if (params.date_joined_after) {
+                queryParams.append('date_joined_after', params.date_joined_after);
             }
-            if (params.created_at_before) {
-                queryParams.append('created_at_before', params.created_at_before);
+            if (params.date_joined_before) {
+                queryParams.append('date_joined_before', params.date_joined_before);
             }
             
-            // Construir URL com query string
-            const url = queryParams.toString() ? `/users/?${queryParams.toString()}` : '/users/';
+            // Construir URL de consulta
+            const url = `/api/users/?${queryParams.toString()}`;
+            console.log('URL de consulta:', url);
             
-            console.log('Buscando usuários com URL:', url);
             const response = await api.get(url);
-            
             return response.data;
         } catch (error) {
             console.error('Erro ao buscar usuários:', error);
@@ -54,10 +60,10 @@ const userService = {
         }
     },
 
-    // Obter um usuário específico
+    // Obter detalhes de um usuário específico
     async getUser(id) {
         try {
-            const response = await api.get(`/users/${id}/`);
+            const response = await api.get(`/api/users/${id}/`);
             return response.data;
         } catch (error) {
             console.error(`Erro ao buscar usuário ${id}:`, error);
@@ -68,7 +74,7 @@ const userService = {
     // Criar um novo usuário
     async createUser(userData) {
         try {
-            const response = await api.post('/users/', userData);
+            const response = await api.post('/api/users/', userData);
             return response.data;
         } catch (error) {
             console.error('Erro ao criar usuário:', error);
@@ -80,23 +86,14 @@ const userService = {
     async updateUser(id, userData) {
         try {
             // Remover campos que não devem ser enviados na atualização
-            const { password2, ...dataToSend } = userData;
+            const dataToSend = userData;
+            delete dataToSend.password;
+            delete dataToSend.password2;
             
-            // Se não houver senha, remover do objeto
-            if (!dataToSend.password) {
-                delete dataToSend.password;
-            }
-            
-            // Log para debug
-            console.log(`Atualizando usuário ${id} com dados:`, dataToSend);
-            
-            // Usar PATCH em vez de PUT para permitir atualizações parciais
-            const response = await api.patch(`/users/${id}/`, dataToSend);
-            console.log('Resposta da atualização:', response.data);
+            const response = await api.patch(`/api/users/${id}/`, userData);
             return response.data;
         } catch (error) {
             console.error(`Erro ao atualizar usuário ${id}:`, error);
-            console.error('Detalhes do erro:', error.response?.data);
             throw error;
         }
     },
@@ -104,18 +101,18 @@ const userService = {
     // Excluir um usuário
     async deleteUser(id) {
         try {
-            await api.delete(`/users/${id}/`);
-            return true;
+            const response = await api.delete(`/api/users/${id}/`);
+            return response.status === 204;
         } catch (error) {
             console.error(`Erro ao excluir usuário ${id}:`, error);
             throw error;
         }
     },
 
-    // Alterar senha do usuário
+    // Alterar senha de um usuário
     async changePassword(id, passwordData) {
         try {
-            const response = await api.post(`/users/${id}/change-password/`, passwordData);
+            const response = await api.post(`/api/users/${id}/change_password/`, passwordData);
             return response.data;
         } catch (error) {
             console.error(`Erro ao alterar senha do usuário ${id}:`, error);
@@ -126,7 +123,7 @@ const userService = {
     // Atualizar perfil do usuário logado
     async updateProfile(userData) {
         try {
-            const response = await api.put('/users/me/', userData);
+            const response = await api.patch('/api/users/me/', userData);
             return response.data;
         } catch (error) {
             console.error('Erro ao atualizar perfil:', error);
@@ -137,7 +134,7 @@ const userService = {
     // Obter perfil do usuário logado
     async getProfile() {
         try {
-            const response = await api.get('/users/me/');
+            const response = await api.get('/api/users/me/');
             return response.data;
         } catch (error) {
             console.error('Erro ao obter perfil:', error);
@@ -145,10 +142,10 @@ const userService = {
         }
     },
 
-    // Alternar status do usuário (ativo/inativo)
+    // Alternar o status (ativar/desativar) de um usuário
     async toggleStatus(id) {
         try {
-            const response = await api.patch(`/users/${id}/toggle_status/`);
+            const response = await api.patch(`/api/users/${id}/toggle_status/`);
             return response.data;
         } catch (error) {
             console.error(`Erro ao alternar status do usuário ${id}:`, error);

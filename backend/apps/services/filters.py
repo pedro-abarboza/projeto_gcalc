@@ -1,5 +1,5 @@
 import django_filters
-from .models import Service, Client
+from .models import Service
 
 class ServiceFilter(django_filters.FilterSet):
     client = django_filters.NumberFilter(field_name='client__id')
@@ -11,12 +11,4 @@ class ServiceFilter(django_filters.FilterSet):
     
     class Meta:
         model = Service
-        fields = ['client', 'service_type', 'status', 'assigned_to', 'reviewer', 'created_by']
-
-class ClientFilter(django_filters.FilterSet):
-    document_type = django_filters.CharFilter(field_name='document_type')
-    status = django_filters.BooleanFilter(field_name='status')
-    
-    class Meta:
-        model = Client
-        fields = ['document_type', 'status'] 
+        fields = ['client', 'service_type', 'status', 'assigned_to', 'reviewer', 'created_by'] 

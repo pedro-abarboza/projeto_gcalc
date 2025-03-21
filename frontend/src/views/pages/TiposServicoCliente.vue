@@ -49,7 +49,7 @@
             name: '',
             description: '',
             price: 0,
-            client_id: null,
+            client: null,
             status: true
         };
         submitted.value = false;
@@ -64,7 +64,7 @@
     const saveTipoServico = async (data) => {
         submitted.value = true;
 
-        if (!data.name || !data.client_id || !data.price) {
+        if (!data.name || !data.client || !data.price) {
             toast.add({ severity: 'error', summary: 'Erro', detail: 'Preencha todos os campos obrigatórios', life: 3000 });
             return;
         }
@@ -185,6 +185,28 @@
         return client ? client.name : '';
     };
 
+    // Menu de contexto
+    const menuRefs = ref({});
+    const get_menuRefs = (event, id) => {
+        return menuRefs.value[id] = event;
+    };
+    const getMenuItems = (data) => [
+        {
+            label: 'Editar',
+            icon: 'pi pi-pencil p-button-text p-button-success',
+            command: () => editTipoServico(data)
+        },
+        {
+            label: 'Excluir',
+            icon: 'pi pi-trash p-button-text p-button-danger',
+            command: () => confirmDeleteTipoServico(data)
+        }
+    ];
+
+    const toggle = (event, data) => {
+        menuRefs.value[data.id].toggle(event);
+    };
+
     // Carregar dados iniciais
     const loadData = async () => {
         try {
@@ -212,13 +234,13 @@
         <Toolbar class="mb-4">
             <template #start>
                 <div class="my-2">
-                    <Button label="Novo" icon="pi pi-plus" class="p-button-success mr-2" @click="openNew" :disabled="loading" />
+                    <Button label="Novo Tipo de Serviço" icon="pi pi-plus" class="p-button-success mr-2" @click="openNew" :disabled="loading" />
                     <Button label="Excluir" icon="pi pi-trash" class="p-button-danger" @click="confirmDeleteSelected" :disabled="!selectedTiposServico || !selectedTiposServico.length || loading" />
                 </div>
             </template>
 
             <template #end>
-                <Button label="Exportar" icon="pi pi-upload" class="p-button-help" @click="exportCSV($event)" :disabled="loading" />
+                <Button label="Exportar" icon="pi pi-upload" severity="secondary" @click="exportCSV($event)" :disabled="loading" />
             </template>
         </Toolbar>
 
@@ -237,12 +259,17 @@
             :loading="loading"
         >
             <template #header>
-                <div class="flex flex-column md:flex-row md:justify-content-between md:align-items-center">
-                    <h5 class="m-0">Gerenciar Tipos de Serviço</h5>
+                <div class="flex flex-column md:flex-row md:justify-between md:align-items-center">
                     <span class="block mt-2 md:mt-0 p-input-icon-left">
-                        <i class="pi pi-search" />
-                        <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
+                        <h4 class="m-0">Gestão de Tipos de Serviço</h4>
                     </span>
+
+                    <IconField>
+                        <InputIcon>
+                            <i class="pi pi-search" />
+                        </InputIcon>
+                        <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
+                    </IconField>
                 </div>
             </template>
 
@@ -261,34 +288,28 @@
                 </div>
             </template>
 
-            <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
-            <Column field="id" header="ID" :sortable="true" headerStyle="width: 3rem; min-width: 3rem"></Column>
-            <Column field="name" header="Nome" :sortable="true" headerStyle="min-width: 14rem"></Column>
-            <Column field="description" header="Descrição" :sortable="true" headerStyle="min-width: 14rem"></Column>
-            <Column field="client_id" header="Cliente" :sortable="true" headerStyle="min-width: 14rem">
+            <Column selectionMode="multiple"></Column>
+            <Column field="name" header="Nome" :sortable="true"></Column>
+            <Column field="description" header="Descrição" :sortable="true"></Column>
+            <Column field="client" header="Cliente" :sortable="true">
                 <template #body="slotProps">
-                    {{ getClientName(slotProps.data.client_id) }}
+                    {{ getClientName(slotProps.data.client) }}
                 </template>
             </Column>
-            <Column field="price" header="Preço Base" :sortable="true" headerStyle="min-width: 10rem">
+            <Column field="price" header="Preço Base" :sortable="true">
                 <template #body="slotProps">
                     {{ formatCurrency(slotProps.data.price) }}
                 </template>
             </Column>
-            <Column field="created_at" header="Data de Cadastro" :sortable="true" headerStyle="min-width: 10rem">
-                <template #body="slotProps">
-                    {{ formatDate(slotProps.data.created_at) }}
-                </template>
-            </Column>
-            <Column field="status" header="Status" :sortable="true" headerStyle="min-width: 8rem">
+            <Column field="status" header="Status" :sortable="true">
                 <template #body="slotProps">
                     <Tag :value="slotProps.data.status ? 'Ativo' : 'Inativo'" :severity="slotProps.data.status ? 'success' : 'danger'" />
                 </template>
             </Column>
-            <Column headerStyle="min-width: 10rem">
+            <Column>
                 <template #body="slotProps">
-                    <Button icon="pi pi-pencil" class="p-button-rounded p-button-success mr-2" @click="editTipoServico(slotProps.data)" :disabled="loading" />
-                    <Button icon="pi pi-trash" class="p-button-rounded p-button-warning mt-2" @click="confirmDeleteTipoServico(slotProps.data)" :disabled="loading" />
+                    <Button icon="p-button-rounded pi pi-ellipsis-v" @click="(e) => toggle(e, slotProps.data)" aria-haspopup="true" aria-controls="overlay_menu" size="small" rounded raised />
+                    <Menu :ref="(e) => get_menuRefs(e, slotProps.data.id)" id="overlay_menu" :model="getMenuItems(slotProps.data)" :popup="true" />
                 </template>
             </Column>
         </DataTable>
@@ -324,4 +345,39 @@
             </template>
         </Dialog>
     </div>
-</template> 
+</template>
+
+<style scoped>
+.card {
+    background: var(--surface-card);
+    padding: 2rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+
+.field {
+    margin-bottom: 1.5rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.p-button {
+    margin-right: 0.5rem;
+}
+
+.p-dialog .p-dialog-content {
+    padding: 2rem;
+}
+
+.p-dialog .p-dialog-footer {
+    padding: 1.5rem;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+</style> 

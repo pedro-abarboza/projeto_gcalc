@@ -51,10 +51,9 @@ INSTALLED_APPS = [
     # Local apps
     'apps.users',
     'apps.services',
+    'apps.clients',
 ]
 
-# Custom User Model
-AUTH_USER_MODEL = 'users.User'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
