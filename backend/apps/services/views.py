@@ -26,12 +26,11 @@ class ServiceTypeClientViewSet(viewsets.ModelViewSet):
     """
     queryset = ServiceTypeClient.objects.all()
     serializer_class = ServiceTypeClientSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [SearchFilter, OrderingFilter, filters.DjangoFilterBackend]
-    search_fields = ['name', 'description', 'client__name']
-    ordering_fields = ['name', 'created_at', 'price']
-    filterset_fields = ['client', 'status']
-    pagination_class = StandardResultsSetPagination
+
+
+    def list(self, request, *args, **kwargs):
+        print(request.query_params)
+        return super().list(request, *args, **kwargs)
     
     def get_serializer_class(self):
         if self.action == 'list':

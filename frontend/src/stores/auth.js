@@ -50,10 +50,17 @@ export const useAuthStore = defineStore('auth', {
             this.loading = true;
             this.error = null;
             try {
+                // Importar userStore dinamicamente para evitar dependência circular
+                const { useUserStore } = await import('@/stores/user');
+                const userStore = useUserStore();
+                
                 await authService.logout();
                 this.token = null;
                 this.user = null;
                 localStorage.removeItem('token');
+                
+                // Limpar os dados do usuário no userStore
+                userStore.clearUserData();
             } catch (error) {
                 this.error = error.response?.data?.detail || 'Erro ao realizar logout';
                 throw error;

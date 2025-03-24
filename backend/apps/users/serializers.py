@@ -53,13 +53,12 @@ class GroupSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=False)
-    groups = GroupSerializer(many=True, read_only=True)
+    groups = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
     group_ids = serializers.PrimaryKeyRelatedField(
         queryset=Group.objects.all(),
         many=True,
         write_only=True,
-        required=False,
-        source='groups'
+        required=False
     )
 
     class Meta:
@@ -72,7 +71,8 @@ class UserSerializer(serializers.ModelSerializer):
             'last_name': {'required': False},
             'email': {'required': False},
             'username': {'required': False},
-            'is_active': {'required': False}
+            'is_active': {'required': False},
+            'groups': {'required': False}
         }
 
 
@@ -104,6 +104,8 @@ class UserSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        group_ids = validated_data.pop('group_ids', [])
+        
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
@@ -115,34 +117,54 @@ class UserSerializer(serializers.ModelSerializer):
         user.set_password(validated_data['password'])
         
         # Adicionar grupos se fornecidos
-        if 'groups' in validated_data:
-            user.groups.set(validated_data['groups'])
+        if group_ids:
+            user.groups.set(group_ids)
         
         user.save()
         return user
 
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
+        group_ids = validated_data.pop('group_ids', None)
         
         # Atualizar campos normais
         for attr, value in validated_data.items():
-            if attr != 'groups':  # Tratamos groups separadamente
-                setattr(instance, attr, value)
+            setattr(instance, attr, value)
         
         if password:
             instance.set_password(password)
         
         # Atualizar grupos se fornecidos
-        if 'groups' in validated_data:
-            instance.groups.set(validated_data['groups'])
+        if group_ids is not None:
+            instance.groups.set(group_ids)
         
         instance.save()
         return instance
 
+
 class UserListSerializer(serializers.ModelSerializer):
-    groups = GroupSerializer(many=True, read_only=True)
+    groups = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
     
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'groups', 'is_active', 'date_joined', 'last_login')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 'groups', 
+                  'is_active', 'date_joined', 'last_login')
+        read_only_fields = ('date_joined', 'last_login')
+
+
+class GroupWithPermissionsSerializer(serializers.ModelSerializer):
+    permissions = PermissionSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = Group
+        fields = ['id', 'name', 'permissions']
+
+
+class UserDetailSerializer(serializers.ModelSerializer):
+    groups = GroupWithPermissionsSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 
+                 'is_active', 'groups', 'date_joined', 'last_login')
         read_only_fields = ('date_joined', 'last_login')

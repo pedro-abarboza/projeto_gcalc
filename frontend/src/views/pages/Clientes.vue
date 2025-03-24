@@ -3,9 +3,12 @@
     import { useToast } from 'primevue/usetoast';
     import { FilterMatchMode } from '@primevue/core/api';
     import { useClientStore } from '@/stores/client';
+    import { useUserStore } from '@/stores/user';
     import ClientForm from '@/components/forms/ClientForm.vue';
+    import PermissionCheck from '@/components/permissions/PermissionCheck.vue';
 
     const clientStore = useClientStore();
+    const userStore = useUserStore();
     const toast = useToast();
     const dt = ref(null);
     
@@ -29,6 +32,11 @@
     };
     
     const openNew = () => {
+        if (!userStore.hasPermission('clients.add_client')) {
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para adicionar clientes', life: 3000 });
+            return;
+        }
+        
         client.value = {
             name: '',
             document_type: 'cpf',
@@ -59,10 +67,20 @@
         
         try {
             if (client.value.id) {
+                // Verificar permissão para editar
+                if (!userStore.hasPermission('clients.change_client')) {
+                    toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para editar clientes', life: 3000 });
+                    return;
+                }
                 // Atualizar cliente existente
                 await clientStore.updateClient(client.value.id, client.value);
                 toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Cliente atualizado', life: 3000 });
             } else {
+                // Verificar permissão para adicionar
+                if (!userStore.hasPermission('clients.add_client')) {
+                    toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para adicionar clientes', life: 3000 });
+                    return;
+                }
                 // Criar novo cliente
                 await clientStore.createClient(client.value);
                 toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Cliente criado', life: 3000 });
@@ -160,6 +178,10 @@
     };
 
     const editClient = (editClient) => {
+        if (!userStore.hasPermission('clients.change_client')) {
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para editar clientes', life: 3000 });
+            return;
+        }
         console.log('Editando cliente:', editClient);
         // Criar uma cópia profunda do objeto para evitar referências
         client.value = JSON.parse(JSON.stringify(editClient));
@@ -167,15 +189,27 @@
     };
 
     const confirmDeleteClient = (editClient) => {
+        if (!userStore.hasPermission('clients.delete_client')) {
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para excluir clientes', life: 3000 });
+            return;
+        }
         client.value = editClient;
         deleteClientDialog.value = true;
     };
 
     const confirmDeleteSelected = () => {
+        if (!userStore.hasPermission('clients.delete_client')) {
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para excluir clientes', life: 3000 });
+            return;
+        }
         deleteClientsDialog.value = true;
     };
 
     const deleteClient = async () => {
+        if (!userStore.hasPermission('clients.delete_client')) {
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para excluir clientes', life: 3000 });
+            return;
+        }
         try {
             await clientStore.deleteClient(client.value.id);
             deleteClientDialog.value = false;
@@ -192,6 +226,10 @@
     };
 
     const deleteSelectedClients = async () => {
+        if (!userStore.hasPermission('clients.delete_client')) {
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para excluir clientes', life: 3000 });
+            return;
+        }
         try {
             if (selectedClients.value && selectedClients.value.length > 0) {
                 for (const client of selectedClients.value) {
@@ -216,18 +254,27 @@
     const get_menuRefs = (event, id) => {
         return menuRefs.value[id] = event;
     };
-    const getMenuItems = (data) => [
-                {
-                    label: 'Editar',
-                    icon: 'pi pi-pencil p-button-text p-button-success',
-                    command: () => editClient(data)
-                },
-                {
-                    label: 'Excluir',
-                    icon: 'pi pi-trash p-button-text p-button-danger',
-                    command: () => confirmDeleteClient(data)
-                }
-            ];
+    const getMenuItems = (data) => {
+        const items = [];
+        
+        if (userStore.hasPermission('clients.change_client')) {
+            items.push({
+                label: 'Editar',
+                icon: 'pi pi-pencil p-button-text p-button-success',
+                command: () => editClient(data)
+            });
+        }
+        
+        if (userStore.hasPermission('clients.delete_client')) {
+            items.push({
+                label: 'Excluir',
+                icon: 'pi pi-trash p-button-text p-button-danger',
+                command: () => confirmDeleteClient(data)
+            });
+        }
+        
+        return items;
+    };
 
     const toggle = (event, data) => {
         menuRefs.value[data.id].toggle(event);
@@ -257,13 +304,13 @@
                 <Toolbar class="mb-4">
                     <template #start>
                         <div class="my-2">
-                            <Button label="Novo Cliente" icon="pi pi-plus" class="p-button-success mr-2" @click="openNew" :disabled="loading" />
-                            <Button label="Excluir" icon="pi pi-trash" class="p-button-danger" @click="confirmDeleteSelected" :disabled="!selectedClients || !selectedClients.length || loading" />
+                            <Button label="Novo Cliente" v-permission="'clients.add_client'" icon="pi pi-plus" class="p-button-success mr-2" @click="openNew" :disabled="loading" />
+                            <Button label="Excluir" v-permission="'clients.delete_client'" icon="pi pi-trash" class="p-button-danger" @click="confirmDeleteSelected" :disabled="!selectedClients || !selectedClients.length || loading" />
                         </div>
                     </template>
 
                     <template #end>
-                        <Button label="Exportar" icon="pi pi-upload" severity="secondary" @click="exportCSV($event)" :disabled="loading" />
+                        <Button label="Exportar" v-permission:any="['clients.view_client', 'clients.change_client']" icon="pi pi-upload" severity="secondary" @click="exportCSV($event)" :disabled="loading" />
                     </template>
                 </Toolbar>
 
@@ -287,16 +334,18 @@
                                 <h4 class="m-0">Gestão de Clientes</h4>
                             </span>
 
-                            <IconField>
-                                <InputIcon>
-                                    <i class="pi pi-search" />
-                                </InputIcon>
-                                <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
-                            </IconField>
+                            <PermissionCheck permission="clients.view_client">
+                                <IconField>
+                                    <InputIcon>
+                                        <i class="pi pi-search" />
+                                    </InputIcon>
+                                    <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
+                                </IconField>
+                            </PermissionCheck>
                         </div>
                     </template>
 
-                    <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
+                    <Column v-permission="'clients.delete_client'" selectionMode="multiple" headerStyle="width: 3rem"></Column>
                     <Column field="id" header="ID" :sortable="true" headerStyle="width: 3rem; min-width: 3rem"></Column>
                     <Column field="name" header="Nome" :sortable="true" headerStyle="min-width: 14rem"></Column>
                     <Column field="phone" header="Telefone" :sortable="true" headerStyle="min-width: 10rem"></Column>
@@ -323,7 +372,7 @@
                             />
                         </template>
                     </Column>
-                    <Column headerStyle="min-width: 10rem">
+                    <Column v-permission:any="['clients.change_client', 'clients.delete_client']" headerStyle="min-width: 10rem">
                         <template #body="slotProps">
                             <Button icon="p-button-rounded pi pi-ellipsis-v" @click="(e) => toggle(e, slotProps.data)" aria-haspopup="true" aria-controls="overlay_menu" size="small" rounded raised />
                                 <Menu :ref="(e) => get_menuRefs(e, slotProps.data.id)" id="overlay_menu" :model="getMenuItems(slotProps.data)" :popup="true" />
@@ -356,7 +405,7 @@
                     </div>
                     <template #footer>
                         <Button label="Não" icon="pi pi-times" class="p-button-text" @click="deleteClientDialog = false" :disabled="loading" />
-                        <Button label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteClient" :loading="loading" />
+                        <Button v-permission="'clients.delete_client'" label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteClient" :loading="loading" />
                     </template>
                 </Dialog>
 
@@ -367,7 +416,7 @@
                     </div>
                     <template #footer>
                         <Button label="Não" icon="pi pi-times" class="p-button-text" @click="deleteClientsDialog = false" :disabled="loading" />
-                        <Button label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteSelectedClients" :loading="loading" />
+                        <Button v-permission="'clients.delete_client'" label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteSelectedClients" :loading="loading" />
                     </template>
                 </Dialog>
             </div>

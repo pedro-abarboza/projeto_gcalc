@@ -4,10 +4,13 @@
     import { FilterMatchMode } from '@primevue/core/api';
     import { useClientStore } from '@/stores/client';
     import { useTipoServicoClienteStore } from '@/stores/tipoServicoCliente';
+    import { useUserStore } from '@/stores/user';
     import TipoServicoForm from '@/components/forms/TipoServicoForm.vue';
+    import PermissionCheck from '@/components/permissions/PermissionCheck.vue';
 
     const clientStore = useClientStore();
     const tipoServicoClienteStore = useTipoServicoClienteStore();
+    const userStore = useUserStore();
     const toast = useToast();
     const dt = ref(null);
 
@@ -45,6 +48,11 @@
     };
 
     const openNew = () => {
+        if (!userStore.hasPermission('services.add_service_type')) {
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para adicionar tipos de serviço', life: 3000 });
+            return;
+        }
+        
         tipoServico.value = {
             name: '',
             description: '',
@@ -71,10 +79,20 @@
 
         try {
             if (data.id) {
+                // Verificar permissão para editar
+                if (!userStore.hasPermission('services.change_service_type')) {
+                    toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para editar tipos de serviço', life: 3000 });
+                    return;
+                }
                 // Atualizar tipo de serviço existente
                 await tipoServicoClienteStore.updateTipoServico(data.id, data);
                 toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Tipo de serviço atualizado', life: 3000 });
             } else {
+                // Verificar permissão para adicionar
+                if (!userStore.hasPermission('services.add_service_type')) {
+                    toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para adicionar tipos de serviço', life: 3000 });
+                    return;
+                }
                 // Criar novo tipo de serviço
                 await tipoServicoClienteStore.createTipoServico(data);
                 toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Tipo de serviço criado', life: 3000 });
@@ -125,16 +143,28 @@
     };
 
     const editTipoServico = (editTipoServico) => {
+        if (!userStore.hasPermission('services.change_service_type')) {
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para editar tipos de serviço', life: 3000 });
+            return;
+        }
         tipoServico.value = { ...editTipoServico };
         tipoServicoDialog.value = true;
     };
 
     const confirmDeleteTipoServico = (editTipoServico) => {
+        if (!userStore.hasPermission('services.delete_service_type')) {
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para excluir tipos de serviço', life: 3000 });
+            return;
+        }
         tipoServico.value = editTipoServico;
         deleteTipoServicoDialog.value = true;
     };
 
     const deleteTipoServicoFn = async () => {
+        if (!userStore.hasPermission('services.delete_service_type')) {
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para excluir tipos de serviço', life: 3000 });
+            return;
+        }
         try {
             await tipoServicoClienteStore.deleteTipoServico(tipoServico.value.id);
             deleteTipoServicoDialog.value = false;
@@ -152,10 +182,18 @@
     };
 
     const confirmDeleteSelected = () => {
+        if (!userStore.hasPermission('services.delete_service_type')) {
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para excluir tipos de serviço', life: 3000 });
+            return;
+        }
         deleteTiposServicoDialog.value = true;
     };
 
     const deleteSelectedTiposServico = async () => {
+        if (!userStore.hasPermission('services.delete_service_type')) {
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Você não tem permissão para excluir tipos de serviço', life: 3000 });
+            return;
+        }
         try {
             if (selectedTiposServico.value && selectedTiposServico.value.length > 0) {
                 for (const item of selectedTiposServico.value) {
@@ -190,18 +228,27 @@
     const get_menuRefs = (event, id) => {
         return menuRefs.value[id] = event;
     };
-    const getMenuItems = (data) => [
-        {
-            label: 'Editar',
-            icon: 'pi pi-pencil p-button-text p-button-success',
-            command: () => editTipoServico(data)
-        },
-        {
-            label: 'Excluir',
-            icon: 'pi pi-trash p-button-text p-button-danger',
-            command: () => confirmDeleteTipoServico(data)
+    const getMenuItems = (data) => {
+        const items = [];
+        
+        if (userStore.hasPermission('services.change_service_type')) {
+            items.push({
+                label: 'Editar',
+                icon: 'pi pi-pencil p-button-text p-button-success',
+                command: () => editTipoServico(data)
+            });
         }
-    ];
+        
+        if (userStore.hasPermission('services.delete_service_type')) {
+            items.push({
+                label: 'Excluir',
+                icon: 'pi pi-trash p-button-text p-button-danger',
+                command: () => confirmDeleteTipoServico(data)
+            });
+        }
+        
+        return items;
+    };
 
     const toggle = (event, data) => {
         menuRefs.value[data.id].toggle(event);
@@ -234,13 +281,13 @@
         <Toolbar class="mb-4">
             <template #start>
                 <div class="my-2">
-                    <Button label="Novo Tipo de Serviço" icon="pi pi-plus" class="p-button-success mr-2" @click="openNew" :disabled="loading" />
-                    <Button label="Excluir" icon="pi pi-trash" class="p-button-danger" @click="confirmDeleteSelected" :disabled="!selectedTiposServico || !selectedTiposServico.length || loading" />
+                    <Button label="Novo Tipo de Serviço" v-permission="'services.add_service_type'" icon="pi pi-plus" class="p-button-success mr-2" @click="openNew" :disabled="loading" />
+                    <Button label="Excluir" v-permission="'services.delete_service_type'" icon="pi pi-trash" class="p-button-danger" @click="confirmDeleteSelected" :disabled="!selectedTiposServico || !selectedTiposServico.length || loading" />
                 </div>
             </template>
 
             <template #end>
-                <Button label="Exportar" icon="pi pi-upload" severity="secondary" @click="exportCSV($event)" :disabled="loading" />
+                <Button label="Exportar" v-permission:any="['services.view_service_type', 'services.change_service_type']" icon="pi pi-upload" severity="secondary" @click="exportCSV($event)" :disabled="loading" />
             </template>
         </Toolbar>
 
@@ -264,12 +311,14 @@
                         <h4 class="m-0">Gestão de Tipos de Serviço</h4>
                     </span>
 
-                    <IconField>
-                        <InputIcon>
-                            <i class="pi pi-search" />
-                        </InputIcon>
-                        <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
-                    </IconField>
+                    <PermissionCheck permission="services.view_service_type">
+                        <IconField>
+                            <InputIcon>
+                                <i class="pi pi-search" />
+                            </InputIcon>
+                            <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
+                        </IconField>
+                    </PermissionCheck>
                 </div>
             </template>
 
@@ -288,7 +337,7 @@
                 </div>
             </template>
 
-            <Column selectionMode="multiple"></Column>
+            <Column v-permission="'services.delete_service_type'" selectionMode="multiple"></Column>
             <Column field="name" header="Nome" :sortable="true"></Column>
             <Column field="description" header="Descrição" :sortable="true"></Column>
             <Column field="client" header="Cliente" :sortable="true">
@@ -306,7 +355,7 @@
                     <Tag :value="slotProps.data.status ? 'Ativo' : 'Inativo'" :severity="slotProps.data.status ? 'success' : 'danger'" />
                 </template>
             </Column>
-            <Column>
+            <Column v-permission:any="['services.change_service_type', 'services.delete_service_type']">
                 <template #body="slotProps">
                     <Button icon="p-button-rounded pi pi-ellipsis-v" @click="(e) => toggle(e, slotProps.data)" aria-haspopup="true" aria-controls="overlay_menu" size="small" rounded raised />
                     <Menu :ref="(e) => get_menuRefs(e, slotProps.data.id)" id="overlay_menu" :model="getMenuItems(slotProps.data)" :popup="true" />
@@ -330,7 +379,7 @@
             </div>
             <template #footer>
                 <Button label="Não" icon="pi pi-times" class="p-button-text" @click="deleteTipoServicoDialog = false" :disabled="loading" />
-                <Button label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteTipoServicoFn" :loading="loading" />
+                <Button v-permission="'services.delete_service_type'" label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteTipoServicoFn" :loading="loading" />
             </template>
         </Dialog>
 
@@ -341,7 +390,7 @@
             </div>
             <template #footer>
                 <Button label="Não" icon="pi pi-times" class="p-button-text" @click="deleteTiposServicoDialog = false" :disabled="loading" />
-                <Button label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteSelectedTiposServico" :loading="loading" />
+                <Button v-permission="'services.delete_service_type'" label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteSelectedTiposServico" :loading="loading" />
             </template>
         </Dialog>
     </div>

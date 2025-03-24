@@ -5,6 +5,8 @@ export const useUserStore = defineStore('user', {
     state: () => ({
         users: [],
         currentUser: null,
+        userPermissions: [], // Armazenar as permissões do usuário atual
+        userPermissionSet: new Set(), // Set para verificação rápida de permissões
         loading: false,
         error: null,
         pagination: {
@@ -50,10 +52,62 @@ export const useUserStore = defineStore('user', {
         getPagination: (state) => state.pagination,
 
         // Retorna os filtros atuais
-        getFilters: (state) => state.filters
+        getFilters: (state) => state.filters,
+
+        // Retorna todas as permissões do usuário
+        getUserPermissions: (state) => state.userPermissions,
+
+        // Verifica se o usuário tem uma permissão específica
+        hasPermission: (state) => (permission) => {
+            return state.userPermissionSet.has(permission);
+        },
+
+        // Verifica se o usuário tem todas as permissões especificadas
+        hasAllPermissions: (state) => (permissions) => {
+            if (!permissions || !permissions.length) return true;
+            return permissions.every(permission => state.userPermissionSet.has(permission));
+        },
+
+        // Verifica se o usuário tem pelo menos uma das permissões especificadas
+        hasAnyPermission: (state) => (permissions) => {
+            if (!permissions || !permissions.length) return true;
+            return permissions.some(permission => state.userPermissionSet.has(permission));
+        }
     },
 
     actions: {
+        // Processa e armazena as permissões do usuário
+        processUserPermissions(user) {
+            if (!user) {
+                this.userPermissions = [];
+                this.userPermissionSet.clear();
+                return;
+            }
+            
+            // Obter todas as permissões dos grupos do usuário
+            const allPermissions = [];
+            
+            if (user.groups && Array.isArray(user.groups)) {
+                user.groups.forEach(group => {
+                    if (group.permissions && Array.isArray(group.permissions)) {
+                        group.permissions.forEach(permission => {
+                            // Armazenar o nome codificado da permissão (app_label.codename)
+                            allPermissions.push(`${permission.app_label}.${permission.codename}`);
+                        });
+                    }
+                });
+            }
+            
+            // Atualizar o estado
+            this.userPermissions = [...new Set(allPermissions)]; // Remover duplicatas
+            
+            // Atualizar o Set para verificações rápidas
+            this.userPermissionSet.clear();
+            this.userPermissions.forEach(perm => this.userPermissionSet.add(perm));
+            
+            console.log('Permissões do usuário processadas:', this.userPermissions);
+        },
+        
         // Atualiza os filtros
         updateFilters(newFilters) {
             this.filters = { ...this.filters, ...newFilters };
@@ -209,6 +263,12 @@ export const useUserStore = defineStore('user', {
                     this.users[index] = data;
                 }
                 
+                // Se estiver atualizando o usuário atual, atualizar também as permissões
+                if (this.currentUser && this.currentUser.id === id) {
+                    this.currentUser = data;
+                    this.processUserPermissions(data);
+                }
+                
                 return data;
             } catch (error) {
                 console.error('Store: Erro ao atualizar usuário', error);
@@ -283,6 +343,10 @@ export const useUserStore = defineStore('user', {
             try {
                 const data = await userService.getProfile();
                 this.currentUser = data;
+                
+                // Processar as permissões do usuário
+                this.processUserPermissions(data);
+                
                 return data;
             } catch (error) {
                 this.error = error.response?.data?.detail || 'Erro ao carregar perfil';
@@ -299,6 +363,10 @@ export const useUserStore = defineStore('user', {
             try {
                 const data = await userService.updateProfile(userData);
                 this.currentUser = data;
+                
+                // Atualizar as permissões do usuário
+                this.processUserPermissions(data);
+                
                 return data;
             } catch (error) {
                 this.error = error.response?.data?.detail || 'Erro ao atualizar perfil';
@@ -317,6 +385,8 @@ export const useUserStore = defineStore('user', {
         resetState() {
             this.users = [];
             this.currentUser = null;
+            this.userPermissions = [];
+            this.userPermissionSet.clear();
             this.loading = false;
             this.error = null;
             this.pagination = {
@@ -337,6 +407,13 @@ export const useUserStore = defineStore('user', {
                 is_active: null,
                 ordering: '-date_joined'
             };
+        },
+
+        // Limpa os dados do usuário após o logout
+        clearUserData() {
+            this.currentUser = null;
+            this.userPermissions = [];
+            this.userPermissionSet.clear();
         }
     }
 }); 

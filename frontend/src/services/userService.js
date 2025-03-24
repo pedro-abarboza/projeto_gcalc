@@ -74,7 +74,18 @@ const userService = {
     // Criar um novo usuário
     async createUser(userData) {
         try {
-            const response = await api.post('/api/users/', userData);
+            console.log('Dados recebidos para criação:', userData);
+            
+            // Criar uma cópia para não alterar o objeto original
+            const dataToSend = { ...userData };
+            
+            // Garantir que estamos enviando group_ids corretamente
+            if (dataToSend.groups && !dataToSend.group_ids) {
+                dataToSend.group_ids = dataToSend.groups;
+            }
+            
+            console.log('Dados a serem enviados:', dataToSend);
+            const response = await api.post('/api/users/', dataToSend);
             return response.data;
         } catch (error) {
             console.error('Erro ao criar usuário:', error);
@@ -85,12 +96,19 @@ const userService = {
     // Atualizar um usuário existente
     async updateUser(id, userData) {
         try {
-            // Remover campos que não devem ser enviados na atualização
-            const dataToSend = userData;
-            delete dataToSend.password;
-            delete dataToSend.password2;
             
-            const response = await api.patch(`/api/users/${id}/`, userData);
+            // Remover campos que não devem ser enviados na atualização
+            const dataToSend = { ...userData };
+            
+            // Verificar e transformar os campos de senha
+            if (!dataToSend.password) {
+                delete dataToSend.password;
+            }
+            if (dataToSend.password2 !== undefined) {
+                delete dataToSend.password2;
+            }
+            
+            const response = await api.patch(`/api/users/${id}/`, dataToSend);
             return response.data;
         } catch (error) {
             console.error(`Erro ao atualizar usuário ${id}:`, error);
@@ -134,7 +152,8 @@ const userService = {
     // Obter perfil do usuário logado
     async getProfile() {
         try {
-            const response = await api.get('/api/users/me/');
+            // Solicitar o perfil com todos os detalhes de grupos e permissões
+            const response = await api.get('/api/users/me/?include_permissions=true');
             return response.data;
         } catch (error) {
             console.error('Erro ao obter perfil:', error);

@@ -5,9 +5,12 @@
     import { useClientStore } from '@/stores/client';
     import ServiceForm from '@/components/forms/ServiceForm.vue';
     import { useServiceStore } from '@/stores/service';
+    import { useUserStore } from '@/stores/user';
+    import PermissionCheck from '@/components/permissions/PermissionCheck.vue';
 
     const serviceStore = useServiceStore();
     const clientStore = useClientStore();
+    const userStore = useUserStore();
     const dt = ref(null);
     
     // Computed properties
@@ -52,7 +55,7 @@
     };
 
     const getStatusSeverity = (status) => {
-        if (!status) return 'info';
+        if (!status) return '';
         const severityMap = {
             'pending': 'warning',
             'in_progress': 'info',
@@ -74,131 +77,223 @@
     };
 
     const openNew = () => {
-        service.value = {};
+        // Verificar permissão
+        if (!userStore.hasPermission('services.add_service')) {
+            toast.add({ 
+                severity: 'error', 
+                summary: 'Erro', 
+                detail: 'Você não tem permissão para adicionar serviços', 
+                life: 3000 
+            });
+            return;
+        }
+        
+        service.value = {
+            title: '',
+            description: '',
+            client_id: null,
+            service_type_id: null,
+            status: 'pending',
+            due_date: new Date(new Date().setDate(new Date().getDate() + 10)),
+            estimated_hours: 0,
+            scope: '',
+            is_active: true
+        };
+        submitted.value = false;
         serviceDialog.value = true;
     };
 
     const editService = (data) => {
-        console.log('Editando serviço:', data);
-        // Criar uma cópia profunda do objeto para evitar referências
-        service.value = JSON.parse(JSON.stringify(data));
+        // Verificar permissão
+        if (!userStore.hasPermission('services.change_service')) {
+            toast.add({ 
+                severity: 'error', 
+                summary: 'Erro', 
+                detail: 'Você não tem permissão para editar serviços', 
+                life: 3000 
+            });
+            return;
+        }
+        
+        service.value = { ...data };
+        if (service.value.due_date) {
+            service.value.due_date = new Date(service.value.due_date);
+        }
         serviceDialog.value = true;
     };
 
-    const confirmDeleteService = (editService) => {
-        service.value = editService;
+    const confirmDeleteService = (data) => {
+        // Verificar permissão
+        if (!userStore.hasPermission('services.delete_service')) {
+            toast.add({ 
+                severity: 'error', 
+                summary: 'Erro', 
+                detail: 'Você não tem permissão para excluir serviços', 
+                life: 3000 
+            });
+            return;
+        }
+        
+        service.value = data;
         deleteServiceDialog.value = true;
     };
 
     const confirmDeleteSelected = () => {
-        deleteServicesDialog.value = true;
-    };
-
-    const deleteService = async () => {
-        try {
-            await serviceStore.deleteService(service.value.id);
-            deleteServiceDialog.value = false;
-            service.value = {};
-            toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Serviço excluído', life: 3000 });
-        } catch (error) {
+        // Verificar permissão
+        if (!userStore.hasPermission('services.delete_service')) {
             toast.add({ 
                 severity: 'error', 
                 summary: 'Erro', 
-                detail: error.response?.data?.detail || 'Erro ao excluir serviço', 
+                detail: 'Você não tem permissão para excluir serviços', 
                 life: 3000 
             });
-        }
-    };
-
-    const deleteSelectedServices = async () => {
-        try {
-            if (selectedServices.value && selectedServices.value.length > 0) {
-                for (const service of selectedServices.value) {
-                    await serviceStore.deleteService(service.id);
-                }
-                deleteServicesDialog.value = false;
-                selectedServices.value = [];
-                toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Serviços excluídos', life: 3000 });
-            }
-        } catch (error) {
-            toast.add({ 
-                severity: 'error', 
-                summary: 'Erro', 
-                detail: error.response?.data?.detail || 'Erro ao excluir serviços', 
-                life: 3000 
-            });
-        }
-    };
-
-    const saveService = async (data) => {
-        submitted.value = true;
-        
-        // Validar campos obrigatórios
-        if (!data.title || !data.client || !data.service_type || 
-            !data.calculation_type || !data.description || !data.status) {
-                toast.add({ severity: 'error', summary: 'Erro', detail: 'Preencha todos os campos obrigatórios', life: 3000 });
             return;
         }
         
+        deleteServicesDialog.value = true;
+    };
+
+    const hideDialog = () => {
+        serviceDialog.value = false;
+        submitted.value = false;
+    };
+
+    const saveService = async () => {
+        submitted.value = true;
+
+        if (!service.value.title || !service.value.client_id) {
+            toast.add({ 
+                severity: 'warn', 
+                summary: 'Atenção', 
+                detail: 'Preencha os campos obrigatórios', 
+                life: 3000 
+            });
+            return;
+        }
+
+        // Verificar permissão
+        if (service.value.id) {
+            if (!userStore.hasPermission('services.change_service')) {
+                toast.add({ 
+                    severity: 'error', 
+                    summary: 'Erro', 
+                    detail: 'Você não tem permissão para editar serviços', 
+                    life: 3000 
+                });
+                return;
+            }
+        } else {
+            if (!userStore.hasPermission('services.add_service')) {
+                toast.add({ 
+                    severity: 'error', 
+                    summary: 'Erro', 
+                    detail: 'Você não tem permissão para adicionar serviços', 
+                    life: 3000 
+                });
+                return;
+            }
+        }
+
+        loading.value = true;
         try {
-            // Preparar dados para envio à API
-            const serviceData = { ...data };
-            
-            if (serviceData.id) {
-                await serviceStore.updateService(serviceData.id, serviceData);
+            if (service.value.id) {
+                // Editar serviço existente
+                await serviceStore.updateService(service.value.id, service.value);
                 toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Serviço atualizado', life: 3000 });
             } else {
-                await serviceStore.createService(serviceData);
+                // Criar novo serviço
+                await serviceStore.createService(service.value);
                 toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Serviço criado', life: 3000 });
             }
             serviceDialog.value = false;
             service.value = {};
             submitted.value = false;
+            await serviceStore.fetchServices();
         } catch (error) {
-            console.error('Erro ao salvar serviço:', error);
-            
-            // Tratamento detalhado de erros da API
             let errorMessage = 'Erro ao salvar serviço';
             
+            // Tratar diferentes formatos de erro da API
             if (error.response?.data) {
-                const responseData = error.response.data;
-                
-                // Verificar se é um objeto com campos de erro
-                if (typeof responseData === 'object' && responseData !== null) {
+                if (typeof error.response.data === 'object') {
                     const errorMessages = [];
                     
-                    // Percorrer todos os campos com erro
-                    Object.keys(responseData).forEach(field => {
-                        const fieldErrors = responseData[field];
-                        if (Array.isArray(fieldErrors)) {
-                            errorMessages.push(`${field}: ${fieldErrors.join(', ')}`);
-                        } else if (typeof fieldErrors === 'string') {
-                            errorMessages.push(`${field}: ${fieldErrors}`);
+                    for (const [field, messages] of Object.entries(error.response.data)) {
+                        if (Array.isArray(messages)) {
+                            errorMessages.push(`${field}: ${messages.join(', ')}`);
+                        } else if (typeof messages === 'string') {
+                            errorMessages.push(`${field}: ${messages}`);
                         }
-                    });
+                    }
                     
                     if (errorMessages.length > 0) {
                         errorMessage = errorMessages.join('\n');
                     }
-                } else if (responseData.detail) {
-                    // Mensagem de erro direta
-                    errorMessage = responseData.detail;
-                } else if (typeof responseData === 'string') {
-                    // Resposta de erro como string
-                    errorMessage = responseData;
+                } else if (error.response.data.detail) {
+                    errorMessage = error.response.data.detail;
                 }
-            } else if (error.message) {
-                // Erro com mensagem
-                errorMessage = error.message;
             }
             
+            toast.add({
+                severity: 'error', 
+                summary: 'Erro', 
+                detail: errorMessage,
+                life: 3000,
+                sticky: errorMessage.includes('\n') // Tornar mensagens com múltiplas linhas fixas
+            });
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    const deleteService = async () => {
+        // Verificar permissão
+        if (!userStore.hasPermission('services.delete_service')) {
             toast.add({ 
                 severity: 'error', 
                 summary: 'Erro', 
-                detail: errorMessage, 
-                life: 5000,
-                sticky: errorMessage.includes('\n') // Tornar mensagens com múltiplas linhas fixas
+                detail: 'Você não tem permissão para excluir serviços', 
+                life: 3000 
             });
+            deleteServiceDialog.value = false;
+            return;
+        }
+        
+        try {
+            await serviceStore.deleteService(service.value.id);
+            deleteServiceDialog.value = false;
+            service.value = {};
+            toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Serviço excluído', life: 3000 });
+            await serviceStore.fetchServices();
+        } catch (error) {
+            let errorMessage = 'Erro ao excluir serviço';
+            if (error.response?.data?.detail) {
+                errorMessage = error.response.data.detail;
+            }
+            toast.add({ severity: 'error', summary: 'Erro', detail: errorMessage, life: 3000 });
+        }
+    };
+
+    const deleteSelectedServices = async () => {
+        // Verificar permissão
+        if (!userStore.hasPermission('services.delete_service')) {
+            toast.add({ 
+                severity: 'error', 
+                summary: 'Erro', 
+                detail: 'Você não tem permissão para excluir serviços', 
+                life: 3000 
+            });
+            deleteServicesDialog.value = false;
+            return;
+        }
+        
+        try {
+            await Promise.all(selectedServices.value.map(service => serviceStore.deleteService(service.id)));
+            deleteServicesDialog.value = false;
+            selectedServices.value = [];
+            toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Serviços excluídos', life: 3000 });
+            await serviceStore.fetchServices();
+        } catch (error) {
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao excluir serviços', life: 3000 });
         }
     };
 
@@ -211,11 +306,6 @@
         return client ? client.name : '';
     };
 
-    const hideDialog = () => {
-        serviceDialog.value = false;
-        submitted.value = false;
-    };
-
     // Menu de contexto
     const menuRefs = ref({});
 
@@ -223,18 +313,29 @@
         return menuRefs.value[id] = event;
     };
 
-    const getMenuItems = (data) => [
-                {
-                    label: 'Editar',
-                    icon: 'pi pi-pencil p-button-text p-button-success',
-                    command: () => editService(data)
-                },
-                {
-                    label: 'Excluir',
-                    icon: 'pi pi-trash p-button-text p-button-danger',
-                    command: () => confirmDeleteService(data)
-                }
-            ];
+    const getMenuItems = (data) => {
+        const items = [];
+        
+        // Adicionar opção de editar se tiver permissão
+        if (userStore.hasPermission('services.change_service')) {
+            items.push({
+                label: 'Editar',
+                icon: 'pi pi-pencil p-button-text p-button-success',
+                command: () => editService(data)
+            });
+        }
+        
+        // Adicionar opção de excluir se tiver permissão
+        if (userStore.hasPermission('services.delete_service')) {
+            items.push({
+                label: 'Excluir',
+                icon: 'pi pi-trash p-button-text p-button-danger',
+                command: () => confirmDeleteService(data)
+            });
+        }
+        
+        return items;
+    };
 
     const toggle = (event, data) => {
         menuRefs.value[data.id].toggle(event);
@@ -262,13 +363,13 @@
                 <Toolbar class="mb-4">
                     <template #start>
                         <div class="my-2">
-                            <Button label="Novo Serviço" icon="pi pi-plus" class="p-button-success mr-2" @click="openNew" :disabled="loading" />
-                            <Button label="Excluir" icon="pi pi-trash" class="p-button-danger" :disabled="loading || !selectedServices || !selectedServices.length" @click="confirmDeleteSelected" />
+                            <Button label="Novo Serviço" v-permission="'services.add_service'" icon="pi pi-plus" class="p-button-success mr-2" @click="openNew" :disabled="loading" />
+                            <Button label="Excluir" v-permission="'services.delete_service'" icon="pi pi-trash" class="p-button-danger" :disabled="loading || !selectedServices || !selectedServices.length" @click="confirmDeleteSelected" />
                         </div>
                     </template>
 
                     <template #end>
-                        <Button label="Exportar" icon="pi pi-upload" severity="secondary" @click="exportCSV" :disabled="loading" />
+                        <Button label="Exportar" v-permission:any="['services.view_service', 'services.change_service']" icon="pi pi-upload" severity="secondary" @click="exportCSV" :disabled="loading" />
                     </template>
                 </Toolbar>
 
@@ -291,84 +392,85 @@
                                 <h4 class="m-0">Gestão de Serviços</h4>
                             </span>
 
-                            <IconField>
-                                <InputIcon>
-                                    <i class="pi pi-search" />
-                                </InputIcon>
-                                <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
-                            </IconField>
+                            <PermissionCheck :permissions="['services.view_service', 'services.change_service']">
+                                <IconField>
+                                    <InputIcon>
+                                        <i class="pi pi-search" />
+                                    </InputIcon>
+                                    <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
+                                </IconField>
+                            </PermissionCheck>
                         </div>
                     </template>
 
-                    <template #empty>
-                        <div class="text-center p-4" v-if="loading">
-                            Carregando serviços...
-                        </div>
-                        <div class="text-center p-4" v-else>
-                            Nenhum serviço encontrado.
-                        </div>
-                    </template>
-
-                    <template #loading>
-                        <div class="text-center p-4">
-                            Carregando serviços...
-                        </div>
-                    </template>
-
-                    <Column selectionMode="multiple"></Column>
-                    <Column field="title" header="Título" :sortable="true"></Column>
-                    <Column field="client" header="Cliente" :sortable="true">
-                        <template #body="slotProps">
-                            {{ getClientName(slotProps.data.client) }}
+                    <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
+                    
+                    <Column field="title" header="Título" sortable>
+                        <template #body="{ data }">
+                            <span :class="{ 'font-bold': data.status === 'completed' }">{{ data.title }}</span>
                         </template>
                     </Column>
-                    <Column field="service_type_name" header="Tipo" :sortable="true"></Column>
-                    <Column field="deadline" header="Prazo" :sortable="true">
-                        <template #body="slotProps">
-                            {{ formatDate(slotProps.data.deadline) }}
+                    
+                    <Column field="client_id" header="Cliente" sortable>
+                        <template #body="{ data }">
+                            {{ getClientName(data.client_id) }}
                         </template>
                     </Column>
-                    <Column field="status" header="Status" :sortable="true">
-                        <template #body="slotProps">
-                            <Tag :value="getStatusLabel(slotProps.data.status)" :severity="getStatusSeverity(slotProps.data.status)" />
+                    
+                    <Column field="status" header="Status" sortable>
+                        <template #body="{ data }">
+                            <Tag :value="getStatusLabel(data.status)" :severity="getStatusSeverity(data.status)" />
                         </template>
                     </Column>
-                    <Column>
+                    
+                    <Column field="due_date" header="Data de Entrega" sortable>
+                        <template #body="{ data }">
+                            {{ formatDate(data.due_date) }}
+                        </template>
+                    </Column>
+                    
+                    <Column headerStyle="min-width:8rem;" bodyStyle="text-align:center">
                         <template #body="slotProps">
-                            <Button icon="p-button-rounded pi pi-ellipsis-v" @click="(e) => toggle(e, slotProps.data)" aria-haspopup="true" aria-controls="overlay_menu" size="small" rounded raised />
-                            <Menu :ref="(e) => get_menuRefs(e, slotProps.data.id)" id="overlay_menu" :model="getMenuItems(slotProps.data)" :popup="true" />
+                            <div v-permission:any="['services.change_service', 'services.delete_service']">
+                                <Button icon="p-button-rounded pi pi-ellipsis-v" @click="(e) => toggle(e, slotProps.data)" aria-haspopup="true" aria-controls="overlay_menu" size="small" rounded raised />
+                                <Menu :ref="(e) => get_menuRefs(e, slotProps.data.id)" id="overlay_menu" :model="getMenuItems(slotProps.data)" :popup="true" />
+                            </div>
                         </template>
                     </Column>
                 </DataTable>
 
-                <ServiceForm
-                    v-model:visible="serviceDialog"
-                    :service="service"
-                    :submitted="submitted"
-                    :loading="loading"
-                    @save="saveService"
-                    @cancel="hideDialog"
-                />
+                <!-- Diálogo para criar/editar serviços -->
+                <Dialog v-model:visible="serviceDialog" :style="{width: '700px'}" header="Detalhes do Serviço" :modal="true" class="p-fluid">
+                    <ServiceForm 
+                        v-model:service="service"
+                        :submitted="submitted"
+                        :loading="loading"
+                        @save="saveService"
+                        @cancel="hideDialog"
+                    />
+                </Dialog>
 
-                <Dialog v-model:visible="deleteServiceDialog" :style="{ width: '450px' }" header="Confirmar" :modal="true">
+                <!-- Diálogo de confirmação para exclusão -->
+                <Dialog v-model:visible="deleteServiceDialog" :style="{width: '450px'}" header="Confirmar" :modal="true">
                     <div class="flex align-items-center justify-content-center">
                         <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
-                        <span v-if="service">Tem certeza que deseja excluir <b>{{ service.id }}</b>?</span>
+                        <span v-if="service">Tem certeza que deseja excluir <b>{{ service.title }}</b>?</span>
                     </div>
                     <template #footer>
-                        <Button label="Não" icon="pi pi-times" class="p-button-text" @click="deleteServiceDialog = false" :disabled="loading" />
-                        <Button label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteService" :loading="loading" />
+                        <Button label="Não" icon="pi pi-times" class="p-button-text" @click="deleteServiceDialog = false" />
+                        <Button v-permission="'services.delete_service'" label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteService" :loading="loading" />
                     </template>
                 </Dialog>
 
-                <Dialog v-model:visible="deleteServicesDialog" :style="{ width: '450px' }" header="Confirmar" :modal="true">
+                <!-- Diálogo de confirmação para exclusão em lote -->
+                <Dialog v-model:visible="deleteServicesDialog" :style="{width: '450px'}" header="Confirmar" :modal="true">
                     <div class="flex align-items-center justify-content-center">
                         <i class="pi pi-exclamation-triangle mr-3" style="font-size: 2rem" />
                         <span>Tem certeza que deseja excluir os serviços selecionados?</span>
                     </div>
                     <template #footer>
-                        <Button label="Não" icon="pi pi-times" class="p-button-text" @click="deleteServicesDialog = false" :disabled="loading" />
-                        <Button label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteSelectedServices" :loading="loading" />
+                        <Button label="Não" icon="pi pi-times" class="p-button-text" @click="deleteServicesDialog = false" />
+                        <Button v-permission="'services.delete_service'" label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteSelectedServices" :loading="loading" />
                     </template>
                 </Dialog>
             </div>

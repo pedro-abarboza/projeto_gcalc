@@ -10,7 +10,7 @@ export const authService = {
             localStorage.setItem('refreshToken', refresh);
             
             // Obter dados do usuário
-            const userResponse = await api.get('/api/users/users/me/');
+            const userResponse = await api.get('/api/users/me/');
             const user = userResponse.data;
             
             return { token: access, user };
@@ -21,7 +21,7 @@ export const authService = {
 
     async getProfile() {
         try {
-            const response = await api.get('/api/users/users/me/');
+            const response = await api.get('/api/users/me/');
             return response.data;
         } catch (error) {
             throw error;
@@ -30,7 +30,7 @@ export const authService = {
 
     async updateProfile(userData) {
         try {
-            const response = await api.put('/api/users/users/me/', userData);
+            const response = await api.put('/api/users/me/', userData);
             return response.data;
         } catch (error) {
             throw error;
@@ -39,7 +39,7 @@ export const authService = {
 
     async changePassword(passwordData) {
         try {
-            const response = await api.post('/api/users/users/change-password/', passwordData);
+            const response = await api.post('/api/users/change-password/', passwordData);
             return response.data;
         } catch (error) {
             throw error;

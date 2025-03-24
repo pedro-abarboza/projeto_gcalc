@@ -4,8 +4,11 @@
     import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
     import UserForm from '@/components/forms/UserForm.vue';
     import { useUserStore } from '@/stores/user';
+    import { useRoleStore } from '@/stores/role';
+    import PermissionCheck from '@/components/permissions/PermissionCheck.vue';
 
     const userStore = useUserStore();
+    const roleStore = useRoleStore();
     const toast = useToast();
     const dt = ref();
 
@@ -51,24 +54,45 @@
 
     const saveUser = async () => {
         submitted.value = true;
-        console.log('Tentando salvar usuário:', user.value);
 
-        if (user.value.username?.trim() && user.value.email?.trim() && 
-            user.value.first_name?.trim() && user.value.last_name?.trim() && 
-            (!user.value.id || (user.value.id && !user.value.password) || 
-             (user.value.password && user.value.password2 && user.value.password === user.value.password2))) {
+        // Validar se o usuário tem permissão para criar ou editar
+        if (user.value.id && !userStore.hasPermission('auth.change_user')) {
+            toast.add({ 
+                severity: 'error', 
+                summary: 'Erro', 
+                detail: 'Você não tem permissão para editar usuários', 
+                life: 3000 
+            });
+            return;
+        }
+        
+        if (!user.value.id && !userStore.hasPermission('auth.add_user')) {
+            toast.add({ 
+                severity: 'error', 
+                summary: 'Erro', 
+                detail: 'Você não tem permissão para adicionar usuários', 
+                life: 3000 
+            });
+            return;
+        }
+
+        // Validar dados do formulário...
+        const isValid = user.value.username && user.value.email && user.value.first_name && user.value.last_name;
+
+        if (isValid) {
             try {
                 if (user.value.id) {
-                    console.log('Atualizando usuário existente:', user.value.id);
+                    // Atualizar usuário existente
                     await userStore.updateUser(user.value.id, user.value);
-                    toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário Atualizado', life: 3000 });
+                    toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário atualizado', life: 3000 });
                 } else {
-                    console.log('Criando novo usuário');
-                    await userStore.createUser(user.value);
-                    toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário Criado', life: 3000 });
+                    // Criar novo usuário
+                    const newUser = await userStore.createUser(user.value);
+                    toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário criado', life: 3000 });
                 }
                 userDialog.value = false;
                 user.value = {};
+                submitted.value = false;
                 await loadUsers(); // Recarregar a lista após salvar
             } catch (error) {
                 console.error('Erro ao salvar usuário:', error);
@@ -138,6 +162,11 @@
         // Criar uma cópia profunda do objeto para evitar referências
         user.value = JSON.parse(JSON.stringify(data));
         
+        // Mapear groups para group_ids
+        if (user.value.groups && Array.isArray(user.value.groups)) {
+            user.value.group_ids = user.value.groups;
+        }
+        
         // Garantir que todos os campos necessários estejam presentes
         user.value = {
             ...user.value,
@@ -155,14 +184,27 @@
     };
 
     const deleteUser = async () => {
+        // Verificar permissão
+        if (!userStore.hasPermission('auth.delete_user')) {
+            toast.add({ 
+                severity: 'error', 
+                summary: 'Erro', 
+                detail: 'Você não tem permissão para excluir usuários', 
+                life: 3000 
+            });
+            deleteUserDialog.value = false;
+            return;
+        }
+
         try {
             await userStore.deleteUser(user.value.id);
             deleteUserDialog.value = false;
             user.value = {};
-            toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário Removido', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuário excluído', life: 3000 });
             await loadUsers(); // Recarregar a lista após excluir
         } catch (error) {
-            toast.add({ severity: 'error', summary: 'Erro', detail: error.response?.data?.detail || 'Erro ao excluir usuário', life: 3000 });
+            console.error('Erro ao excluir usuário:', error);
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao excluir usuário', life: 3000 });
         }
     };
 
@@ -171,18 +213,31 @@
     };
 
     const deleteSelectedUsers = async () => {
+        // Verificar permissão
+        if (!userStore.hasPermission('auth.delete_user')) {
+            toast.add({ 
+                severity: 'error', 
+                summary: 'Erro', 
+                detail: 'Você não tem permissão para excluir usuários', 
+                life: 3000 
+            });
+            deleteUsersDialog.value = false;
+            return;
+        }
+
         try {
-            if (selectedUsers.value && selectedUsers.value.length > 0) {
-                for (const user of selectedUsers.value) {
-                    await userStore.deleteUser(user.id);
-                }
-                deleteUsersDialog.value = false;
-                selectedUsers.value = [];
-                toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuários excluídos com sucesso', life: 3000 });
-                await loadUsers(); // Recarregar a lista após excluir
+            // Excluir usuários selecionados um por um
+            for (const user of selectedUsers.value) {
+                await userStore.deleteUser(user.id);
             }
+            
+            deleteUsersDialog.value = false;
+            selectedUsers.value = [];
+            toast.add({ severity: 'success', summary: 'Sucesso', detail: 'Usuários excluídos', life: 3000 });
+            await loadUsers(); // Recarregar a lista após excluir
         } catch (error) {
-            toast.add({ severity: 'error', summary: 'Erro', detail: error.response?.data?.detail || 'Erro ao excluir usuários', life: 3000 });
+            console.error('Erro ao excluir usuários:', error);
+            toast.add({ severity: 'error', summary: 'Erro', detail: 'Erro ao excluir usuários', life: 3000 });
         }
     };
 
@@ -237,18 +292,29 @@
     const get_menuRefs = (event, id) => {
         return menuRefs.value[id] = event;
     };
-    const getMenuItems = (data) => [
-        {
-            label: 'Editar',
-            icon: 'pi pi-pencil p-button-text p-button-success',
-            command: () => editUser(data)
-        },
-        {
-            label: 'Excluir',
-            icon: 'pi pi-trash p-button-text p-button-danger',
-            command: () => confirmDeleteUser(data)
+    const getMenuItems = (data) => {
+        const menuItems = [];
+        
+        // Verificar permissão para editar usuário
+        if (userStore.hasPermission('auth.change_user')) {
+            menuItems.push({
+                label: 'Editar',
+                icon: 'pi pi-pencil p-button-text p-button-success',
+                command: () => editUser(data)
+            });
         }
-    ];
+        
+        // Verificar permissão para excluir usuário
+        if (userStore.hasPermission('auth.delete_user')) {
+            menuItems.push({
+                label: 'Excluir',
+                icon: 'pi pi-trash p-button-text p-button-danger',
+                command: () => confirmDeleteUser(data)
+            });
+        }
+        
+        return menuItems;
+    };
 
     const toggle = (event, data) => {
         menuRefs.value[data.id].toggle(event);
@@ -271,8 +337,8 @@
         <Toolbar class="mb-4">
             <template #start>
                 <div class="my-2">
-                    <Button label="Novo Usuário" icon="pi pi-plus" class="p-button-success mr-2" @click="openNew" :disabled="loading" />
-                    <Button label="Excluir" icon="pi pi-trash" class="p-button-danger" :disabled="loading || !selectedUsers || !selectedUsers.length" @click="confirmDeleteSelected" />
+                    <Button label="Novo Usuário" v-permission="'auth.add_user'" icon="pi pi-plus" class="p-button-success mr-2" @click="openNew" :disabled="loading" />
+                    <Button label="Excluir" v-permission="'auth.delete_user'" icon="pi pi-trash" class="p-button-danger" :disabled="loading || !selectedUsers || !selectedUsers.length" @click="confirmDeleteSelected" />
                 </div>
             </template>
             <template #end>
@@ -303,12 +369,14 @@
                         <h4 class="m-0">Gestão de Usuários</h4>
                     </span>
 
-                    <IconField>
-                        <InputIcon>
-                            <i class="pi pi-search" />
-                        </InputIcon>
-                        <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
-                    </IconField>
+                    <PermissionCheck :permissions="['auth.change_user', 'auth.delete_user']">
+                        <IconField>
+                            <InputIcon>
+                                <i class="pi pi-search" />
+                            </InputIcon>
+                            <InputText v-model="filters['global'].value" placeholder="Buscar..." :disabled="loading" />
+                        </IconField>
+                    </PermissionCheck>
                 </div>
             </template>
 
@@ -327,7 +395,7 @@
                 </div>
             </template>
 
-            <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
+            <Column selectionMode="multiple" headerStyle="width: 3rem" v-if="userStore.hasPermission('auth.delete_user')"></Column>
             <Column field="username" header="Usuário" :sortable="true" headerStyle="width: 15%"></Column>
             <Column field="email" header="E-mail" :sortable="true" headerStyle="width: 20%"></Column>
             <Column field="first_name" header="Nome" :sortable="true" headerStyle="width: 15%"></Column>
@@ -359,14 +427,13 @@
                     />
                 </template>
             </Column>
-            <Column headerStyle="min-width:10rem;">
+            <Column header="Ações" headerStyle="min-width:10rem;">
                 <template #body="slotProps">
-                    <Button icon="p-button-rounded pi pi-ellipsis-v" @click="(e) => toggle(e, slotProps.data)" aria-haspopup="true" aria-controls="overlay_menu" size="small" rounded raised />
-                    <Menu :ref="(e) => get_menuRefs(e, slotProps.data.id)" id="overlay_menu" :model="getMenuItems(slotProps.data)" :popup="true" />
+                    <div v-permission:any="['auth.change_user', 'auth.delete_user']">
+                        <Button icon="p-button-rounded pi pi-ellipsis-v" @click="(e) => toggle(e, slotProps.data)" aria-haspopup="true" aria-controls="overlay_menu" size="small" rounded raised />
+                        <Menu :ref="(e) => get_menuRefs(e, slotProps.data.id)" id="overlay_menu" :model="getMenuItems(slotProps.data)" :popup="true" />
+                    </div>
                 </template>
-            </Column>
-            <Column>
-                
             </Column>
         </DataTable>
 
@@ -387,7 +454,7 @@
             </div>
             <template #footer>
                 <Button label="Não" icon="pi pi-times" class="p-button-text" @click="deleteUserDialog = false" :disabled="loading" />
-                <Button label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteUser" :loading="loading" />
+                <Button v-permission="'auth.delete_user'" label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteUser" :loading="loading" />
             </template>
         </Dialog>
 
@@ -398,7 +465,7 @@
             </div>
             <template #footer>
                 <Button label="Não" icon="pi pi-times" class="p-button-text" @click="deleteUsersDialog = false" :disabled="loading" />
-                <Button label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteSelectedUsers" :loading="loading" />
+                <Button v-permission="'auth.delete_user'" label="Sim" icon="pi pi-check" class="p-button-text" @click="deleteSelectedUsers" :loading="loading" />
             </template>
         </Dialog>
     </div>

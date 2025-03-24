@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth.models import User, Group, Permission
-from .serializers import UserSerializer, UserListSerializer, GroupSerializer, PermissionSerializer
+from .serializers import UserSerializer, UserListSerializer, GroupSerializer, PermissionSerializer, UserDetailSerializer
 from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -45,7 +45,14 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='me')
     def me(self, request):
         user = request.user
-        serializer = self.get_serializer(user)
+        include_permissions = request.query_params.get('include_permissions', 'false').lower() == 'true'
+        
+        if include_permissions:
+            # Usar o GroupSerializer detalhado para incluir todas as permissões
+            serializer = UserDetailSerializer(user, context={'request': request})
+        else:
+            serializer = self.get_serializer(user)
+            
         return Response(serializer.data)
 
     @action(detail=True, methods=['patch'], url_path='toggle_status')

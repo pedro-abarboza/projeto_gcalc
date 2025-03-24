@@ -34,6 +34,7 @@ import Chart from 'primevue/chart';
 import Dropdown from 'primevue/dropdown';
 import Calendar from 'primevue/calendar';
 import SpeedDial from 'primevue/speeddial';
+import MultiSelect from 'primevue/multiselect';
 
 
 // Função para carregar as configurações do localStorage
@@ -106,5 +107,6 @@ export function registerPrimeVue(app) {
     app.component('Dropdown', Dropdown);
     app.component('Calendar', Calendar);
     app.component('SpeedDial', SpeedDial);
+    app.component('MultiSelect', MultiSelect);
     return app;
 } 

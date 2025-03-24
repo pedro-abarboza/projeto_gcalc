@@ -175,6 +175,7 @@ onMounted(async () => {
                 :disabled="loading || rolesLoading"
                 :loading="rolesLoading"
                 display="chip"
+                filter
             />
         </div>
         <div class="field">
